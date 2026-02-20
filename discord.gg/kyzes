@@ -1,1016 +1,1144 @@
-local HttpService = game:GetService("HttpService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
+--[[
+ Zyler Hub v1.0 | discord.gg/kyzes
+]]
 
-local APP_NAME = "decompiling script"
-local OWNER_ID = "Kwtjkb2nRJ"
-local VERSION = "1.0"
-local DISCORD = "discord.gg/kyzes"
-local SaveFile = "decompiling_key.txt"
-local HWIDFile = "decompiling_hwid.txt"
+local Players            = game:GetService("Players")
+local RunService         = game:GetService("RunService")
+local TweenService       = game:GetService("TweenService")
+local CoreGui            = game:GetService("CoreGui")
+local HttpService        = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local UserInputService   = game:GetService("UserInputService")
+local LocalPlayer        = Players.LocalPlayer
 
--- ================================================
--- UTILITIES
--- ================================================
-local function GetHWID()
-    if isfile(HWIDFile) then return readfile(HWIDFile) end
-    local hwid = ""
-    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    for i = 1, 32 do
-        local r = math.random(1, #chars)
-        hwid = hwid .. chars:sub(r, r)
-    end
-    hwid = hwid:sub(1,8).."-"..hwid:sub(9,12).."-"..hwid:sub(13,16).."-"..hwid:sub(17,20).."-"..hwid:sub(21,32)
-    writefile(HWIDFile, hwid)
-    return hwid
-end
+local APP_NAME  = "decompiling script"
+local OWNER_ID  = "Kwtjkb2nRJ"
+local VERSION   = "1.0"
+local DISCORD   = "discord.gg/kyzes"
+local KEY_FILE  = "decompiling_key.txt"
+local HWID_FILE = "decompiling_hwid.txt"
+local ICON_FILE = "ZylerHub_icon.png"
+local GUI_NAME  = "ZylerHubGUI"
 
-local HWID = GetHWID()
-
-local gameName = "Unknown Game"
+-- Remove old GUI on re-run
 pcall(function()
-    gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    local old = CoreGui:FindFirstChild(GUI_NAME)
+    if old then old:Destroy() end
 end)
 
-local function RunMainScript()
-    local synsaveinstance = loadstring(game:HttpGet("https://raw.githubusercontent.com/verysigmapro/UniversalSynSaveInstance-With-Save-Terrain/refs/heads/main/saveinstance.luau", true), "saveinstance")()
-    synsaveinstance({})
+local _IC = {
+    [[iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAIAAABMXPacAABhJUlEQVR4nNX9edBt2XUfhv3W2sM5507f8N73xn49oQE00BBAABzliJRctkhVLEqiIlukLNlirIF25JKpilWJLMkuqyy7IjqRVKmoosSVuCKKpGySIiVApAiAJEiAIAQCJGZ0N7rRw5vfN93hnLP3Xmvlj3PvN7x+DYKykirtuvW9++499wx777X2Gn7rt4mwjdPGJ++Izrw3PLIxdHijYCPWMz8/bXT2/cl/GOZPLkd05iCmM4effX96cjN99A1hczunP1MzA2D6iGeg0+N18yyKk+clBWDDQcYAq7qztw0oSM0yKMEEZACDahiffYrNaQtBT+9k8wj+6z7Jb9MU/Kgu/9e0MaDnOtd4GIOT5pgBhvHpT0gFZjAYrweeCHBYDyE2s2H44fCrc1PhGxoAozft5/VwEvSc9JyOv52ZCmc+J3sTqfpX3ojIzGgzJR8pCuve]],
+    [[2dydnZu+qjTcuQMckyO4s+NkcAY2k7XEqAO5s9c//0Y3A7C+jX8pCbAz2mBz1n+d2+Zx7A0fkgoAg4FhPtaTjQScDgBDzLyaGOT0t6fzy22652RUzg8AndUi9uhZrEQnX4XgAZdzdszs1ic1VQBmNswCkd9+RJw7nUd8RsLkzGieW4fOrhOPXGwe2QhmOgjB+oOza4yePT9OZisZm5mpCQfAUNUhjmOsVBjmh67wIYTARXLbLptIokUkF0nGpqKb6X6263ktWMPfIhSCY/4dS0DqCzFiqIuJbTpCCYC+2Vr9r09jADA2NSLvvXMcEjv2oxgn3kc4f7IIj8fVql2auemsSXlllA2O4bUk2qz851XD2YluMFT15Pr167/NAOh6TuhaAIwBA7mtnd22bVddtz4hQFDlzfXOzrJzD3hmDXjEVYbjz+i3N7GI3mz9sDd+QQCxmZ4aYCabO2Db3PBaFNYPyWbqXYgxwI8m48sURk098r7xXK/t]],
+    [[NyrgDs6LZOdNlmTSGdiISJVUZK0SzvbCWcVl1db2W9/21i9+8Yvf4CKMzRIPwFdVtbO7Q0e86LvN+XWj2dYDdc6cONcfQ/sGdcjZw84O5ZvJ2hs+tzfew+YbUtroVSOoMYMV3sAGNq4p1L7aml58ysVZVTUx1FXVrBcAKnfvf3V0odJSVqtjcz0xwEzZsSOUTgelZwzCRgWddLXOdreuX7/62U9/CibEvPvQnQ03670zMxEFGASQG+bgoHbW73m9BpAa2TABGcZmBDDIDZYyoMPx5+3607E/OQ/Oz2I6XbjAZ9ekc2bKm603fHL1ExMF0PM+xGYRUtaEupkqNamT+tKN8ewixaqZXHz6mfe3nTnHV69e61NrZsx8/+5rijlTuXf7tkrfre4tjve7NlmXsDx2VhRsBGNn8AoGmH00teCprv3b3/bEJz/+YXAP7d5UAkrqQexDYOZUzrk2Q/+tu+ik34hhawuB2G0kzgHljP/1kHvydZsx]],
+    [[6E0k4NwAfB1hGmxzHewYkL7ZwUqIo6YvVE229q49dvHqkxab3auXrj3+xGh8kRAuXLiQUkopjcbNwcH+5GKtpC+9+PxoJ7SLfVkdOd9U3rs6rpZLAjl2ChZ4IybyRqxtDuMxobz3Pe/5lY/+PEzryqX+zc3QWDeqWkSQevgK0E0XnD4DbybrqWFFAOC938iBCojY2WDOnfMJHtm1G3OEHB7yfs8ecsZyMz1Vd49YA9Znd6CN53FyzrOiQJz6hDjau/LUs89928VrNya729efvrRzZZqkvXbtauolBLeYl65LWwdSjR7/zS+8snX1mdGkvffqSz48CDUkL3NeOR/ZYBQYbORBa6+42pnVVXj/e9/xi7/4QckrOEjxWuKbDkDqexCTZ7j423j+b3xkIrPNXx5UAb3p0vk7bg/ZzXbmczv31SCsBpCHlTdfOQB4hMmVJ9/xrd/x+77pm79j++LetSdqP8P+cTeajUPQvcuOCKNjH4NnN3r5]],
+    [[Fbl847Jrdm69cHO2e8XleXvIqbOyXDr2AMyCIYIdEZQUwGQ6/fZvfd/P//xPGjIHF5nIODSVN31D7661CwOwwaIndzq7htDKZs6d+x0TjE4m9OOPP/7t3/GtP/aPfswMvNHymhIcA7A3mGh0Zu6/sbvNJMaYshCT6WZFIfYY3jPARNS1bVXXImZmMUYz6VMLKyBP4GH5OLNcKWBQg8VLb3nP9/2xH3z3N703lTLZrkOD/QOLdc0KSTjaByDEqKeuaXDtMfcgzY4X+7t7F796505VT5bGqz71qoUYxoZaEZmjEpqJ25pO3vXOt33ggz9DyCX3dRVJsglEvkFr5LefvGdtLJiZQV57/ZUPf+jDZw9yzE+/7a3eBzw6HvD1zumdc87t7O5KOeNwAkOEAPAA5yxVPaqqJsY6+GpQg+vIwdp99cORZMxwAHMYQd1T73z3D/zJP/fEW9991JZlzr7Gg0N1jqp6eJ719cYjJ4LXX1+I4fIl3rtU]],
+    [[b283Tz31hBIrQiYv5IkjuUjcEDdKTaimuxevvPNdz/38B37WTIjIh4o5MlXMnt3v3BH7RlrJOVaVme0f7OOM8ZP7/vXXX1czDuGctUOEjZ1jZ+TgrIecSyLmB7df9814IwEGMHToWQLgOMBoteqaekzQnLOaeReLDgsYYbNO0KCdlJg9YvPss+/cvXz1uJPg/WxrN2Wog/c5xJBS3oTZQOTu3D6u61Falccu+7wa25F0+wyoEJLjxN77wOqNIlntwmh7d/rcu97xz/7pT3BNnsq4nnUr9kzkerWeGX4dI6W1WrET/UPnfJP1Q56GQWi4I5CSnQnbAoCyc6pasrAD3OkXsamJWKVAlELYfHxyITo58Rubc8G5MNm5uFisHNNJp59tzExEo/Ho7W97x727Dx7sP1gsjp13RdLGeFMYDbdKBghKoe3dx64+/q7DpWbKMRDFoh43nvCdZiUDFd0I0N3byflJTlqNvAOevE73XnLL46OTLjKw]],
+    [[upFRhNYGf+2x68++85mP/NIHfB3GYSxl2UvPzhGM2cFB1bwjiBWzDBhoAhiMNkIXyAeCU2GAg6vImAopmDgikmoqadVUtGqPXXR2JpyiKoPaPzvTSzGgsIs4q+eNGQTijZ/xcBvirMQ+F0ax4JvNLCYA5gyQwXZSMzPbnW5fuXZ5Z/fSRz/6sVDVfb+EM8BAgvUFiMhYWY0g9ezSO8PkLUm35qlUVmaVH+9gkVCPKilKLpgSyEFxPFeRdrbDu1u+ikABFS0p9W06PjzMR8eeg6v32lWebk32Ll149m1PfvADP3Vht4lh6/joNpF3TsmZ9h2x5b5fLQ88yIE8rIY5oAZXoAgjKMHYUIFjXY+ZvXcxcFVjRM6jChZ0NHHPf/FTXT+vqknRfD56/qZG97l2KmEnfx9pcj0UiJczX63Vw3C6uq6Ojg4+9JFfcBilnNbiaArSjVHk1r8igD3i1mR2I9k0967PBaxtKqvWZ1OQmTnHnBJWq5w6]],
+    [[uXXr/uUrOxcuNRcvouvhHdjBU4CxCpfiQL4aTyaXJk89dX1vZ/zRj31ka3tcVU5FQxizFUYhlNGkOXpwO+fWMfusADxoDB6j2YPb8WHmXTUeT7yLwQVCAJgQvQuM4CUyB4uEkJ5+5uLte/P5vS8rtUbyhr47yUU8qkfPuHJn/eTNenDqBxCtu/5MTP/0PBuPYfit5pwBMGHZHYYYpRRyAjkzrqSnUkbVZLx15dINLT63pcvFzLo2H82tTkWKix3BuO+wWoW+T6m0s90r0y3kjFxQCkrpc87zZddlD79dNdN6duHK9WsXr174tV/9xa3dXYeuW82rUNdaO1OmjqhrF3dTSqI9c/E0e8K72rktuKliK8Sdqrrg46jveyOvVBE84B175dohGAUmTw4c+hdeurvqjapAtET6V5UU4Dd5//XaoJRKSc55AGKpbqrVaukDVMujpcoYLtbV1vbWZdOQpKRUiCn11K2gwjAqiY8OC9QDAIeLe9sX]],
+    [[9zwRXr/ZjkeWV9Vq1S/bfPveUc7w0wtbOxeuPvnU5St7n/mNX3vsxhW2tnJNfW13cTCfH7ROwQQi/dqrL3FQH5D63rM9DgTQ2KhhmmSNmpUksa/gAocKCERB4Ym9mVeNAEwIndY1RDqUB0kPiSKUNyr20XM/hphyqqqq5AzAh9D3ffDRlEKoAOScgz9dnIOvsI6Vcs7ZbB0EcuFMHEkUGwkIIaqqqohqkQTWIgCU+czKQgSCUwKFpp7uXbzueXx81PVGYVRN6rFHnXrt+9wuSs5tSS71K7H+qWd23vncnvM4OkTf947ZY3Tn9oPf/NwXC1x98cre3t6Tj9/YvTD9zKc/+c63Pb4ziwf3b969+VK/aK/sXXn86o2XX/zqO579Xf/4p/8BvDP0RZJ35KEjaITV0BrsN3YOGzt1ToiJQAAR2xABIF0HfMBsIKhZgiWQ/20nbMpJcy7Mg6IAoDnnk+AdkHPRTSoKxsx+iHeYFSaS34EvrSeR]],
+    [[uKHX3/Atw7iqxuPJhXsPVlxPqIkVR+9rE6wW0vcp9UsRaVcJlN73zW976mm/exH3HpSjg0OIXrty6ZMff/VXP/ap+bJXtQvXrjz+lqd2tscPXnnx933Hu1956Ssf/ecfv3/za0hHfuyPLl5+z3u+/er1ycc/8aEic3ACClBA6p0pmzpV40IoZM5ZIWPmwGywTCDHIBICGIN/7wnGpk5dUKgqqQq90YB5WA6qqirMVVUxM4AQAgDvKzMKPgJgdi7E4WAzU5iecdRpmAvn2/lM2WljnGqe9c+UjXDGUmCmypT7TkzS7tbWuB6b0tFRmS+P+tR23UIhq9XB+7/1rRev89Un8fLLbS5tXYXt6Va3wkd/6dM3bx3DN9eefOLZdz978dqFxf2b73r2+j/9Rz9657WX6qDj0HWlLQfzm/Obd++/zN6l+SEsgXogAQpT76ywsUMiJSIYxJsZkqMhWsDBKUEBJnIAr2NL7Bw6pqVyEmLm8MheeKiV]],
+    [[nHPOzJxLgTEgOQuQTdcpz1Ky0am1o2SAvTGU/S/ThmXcwAQykMGAPqf9o8Onr44WGVvb09HYdcnu3z/IkormPluW5fUnrlx/6spTz2LZ4fbd+xd3d8fVWDM+8+nXP/ShT0623zadXnr8rdff+syNIqs7D1758V/42aObX2sqd/xgnylHLlVFveZyeAee0a/AhHCKq/AeyZk5Uw+tgyllol7U911PvgYAjaGqACZiELN6EMhlUDfepTijlVSiAjnVtGZWVVXXtqGqsuig1nPJPjjRAlIVgZiyJ/LM3hhwBoDhnAt9KgBijI4cNvmyQRTeOAy8mdFqNoSDnHPMjomgBaeOCKuqaBmPa8l5PK7hp20qd+7d3Lmxf/nxd8QKx/PF8bxtV31fslJRVnXYvjSb7OLOPXTLXkrVt1VH+NpXu5/40Q9X1d4Tb3mmnk7f+fZndsfx137pQ7/+8z8px696HK/mPVSIKauyKciTZyNQ7QElS4ANyBC/]],
+    [[au869sF75/3Bfjc8pJAv3MBXAJz3McYNNGMAVOkwAA8OdDV/FShwFTSf6KCqqqqqEtUYI20GgJhijGYWgjclmK+qJudSVVXbL0861MfaUACEGMtmqfi6EnCa5wOwcRGG7DmwUf+5FFUFGOL2Ll48fHDULTpXXdjd3bn62OXdvZlZvv36a4dHbWhGAmmm/sq1S5evzy5cqvcP5eCwvbg9qeqdOvpP/tqdj/zCr9y9efSuZ9/91Due6fs+d4ef+eIXfvXnfkoWd9AfSlpCxW0QC0qM9VK2vpv1v8aAesFNUSclsDIYZkZEooB6qAOgxbWdQoa0Km9ipQYq7UEBMpgGy1x5Leld24pqXrVSiorlUABYzgBS35ccSp/hKoBLkYd6tuu6kgWAqLJ/KDL6Js14GAe1IZI0oDS8wQ3jwc5ZgY/VZDIZ182tW/ujuB1d48OFq3tPXrm0SxEvffWVO3fupCJB291Ls8vXJk+8dWfvalgt8crL+01l]],
+    [[tZ/sbYevvdT+/M//wvHB8r3vfe873/Gu51/+atce3Vzc+ZUP/0zUeVrehfakwuzM1J2LnJ9MJVXbwDEIHkggz87YORUBDERMKqqkQy6DB/DXkCA0A8AEgiFE731tVto2ETnbRJJDVcUYpZSqqrKYDwHAsPwCCD4A7H1TxUakVFU1X8pJMjnGCBQAMcRiZz3eN+n606Wf15kvAICCBxEHYEJMNJ3MLl25/MLzX52ML3KpfJh2rUEtd8f79x985UvPs684Vimvfte7v+2Zd7rLj6EovvI8JLtlLndvt5SbX//Ep+/du/fWJ5/+jm95z5e/8qWDmy9IWX38I/8E/YEbEdpDeD/0PgA1HeKJCgZqHTJ0Vsi8UAEUBn8SqjUlNhZVgxLg6SShIRv0TwEAcpvIG0sSScLMbIFAsrFYFIMtrqJaShk+LCWvOlLVlBMEpUANpZgYlWLMCkAVlPuSS1VVXb9i71JKAMcYB8PpLHIJAIhPgoBmBMIw]],
+    [[t9hT6osbHl6EnZtOt/f2Lr344itKky6HxtdMAaT37776pc/F/UXeu/D4rXvHAXzt2tXJ2KWEmzdxcJxfeune8riNPly7fGm5sFu3Xnv/tzz3e77j2z72S7/46U9+HGlxdP81tLfQHQuPUFWwchr+Gp4KqlabzYAapnBqToAMyZDkT+3ltYmmbwjpnG0n4ZrTyCURec9EzoONDYB3PsYgqlVVgd2wBrDjqqkXi+V0NlvMW+bgQyCyEIKqMjPAKhpCMFsLDQc/YAuCD6JvlIYzESQ7AaMNWElX181gdBGHyWz7xo0bX/ny86GaqrDCF1Xwqu/be/ekhFKNL3er+ahp4Pz+/vzVVw7vHFDSw4P5/tHxanG8+je/899MSe8f3HruXW+9vDf6wAd/9GMf+Yisjn0+tuVxw9ppF6zJ5teu0vlmiFee/BbBBFBQuXf3dVgBtaDsgbJ2vcgVKyeAnbP52zVuZ5h9g59EGPwIAOoIxoQKJxb312/n]],
+    [[oH3fcLM3/kQ3iy0DIMBsc9cG9qH0wr6+ePHijRs3Pv/5z2cxBjiOTaXIXEtv3C7nx3Rf33LpsV4LOy7Cy8Puqy/eFpeyLttytHNx8nt/3+9O/cL7eHh09+Ju+MDP/djtV74M3GEcWncUpK+tgZqXyGoggAqfCVcpAYiFLyW7CFJi2b72uFoqkqUkv34SUoBAeib5xSd4qU2SQGFMJ77lRlzMyJQGf244XpyZIfUZ4JSTigIoJQ+u7Pz4GGARK+xFwMyDczBYishcsjjOOSuvHQUhcnyaiD8fLDI+A7k5xaOllMx0Z+fCjcee+MLnv5CTBd+wD3Cs6EzapKsQ4UDAinReVdtHy2WXvVE4uH8oXFxVfON/13PPjZtqVfInfvXDi4PXU3fnhS99wtK+3X4VrFitYmyG3mMitgFM5oYQoakZOzUHmxTMMmYwhZa6iZAelAYJYLL1i+3ME5zFaJ4NpZxYUjZ4boNE8GSylXttRqO+78lx0zRi]],
+    [[NBqPbbEIdQXA+r6u6+ViOZ5OlseLZjT1PqxW7XQ6BdsAklSFc15BLlQKqaqKyQOIsc65nHT6qXQaE8V1KsmU1la/N8tK/aXLF5555pkvfuF5LRpc9FSRicg+ycosEVmWDBTLx6++/LkLjzftKm5v31Cuqtr3patq+f4/8W9xwPGhffkzn17cfW25//Li8DW/nKcHt6GConDVqmBlmV0duZgTAGye1ANc1aHNajlWl94SqjGsApTYA8rMzpyZ+DOB+3OaS98ckn5mJp7ICC/mS8uas0ruqIrLxYKcOzw4gOkgSdL3rRkRLY+OAKTctcfHrqnn86O+dOsBELCvS19gPmcBOKUMwMydpPXP66I33iQPYPStrekzb33yE7/28cAVkffOMUOkmMxFWzMzVWJWkVKWKR2t5neCvxxccqGuKgLJO956QzNuvr7/m5/5xPLwzurw1oPbL6XjO2lxiJROMF2AB3klBtsAQTM4HpIE8MYeYerjBX0T]],
+    [[BJAHijGMAI5S7GSK2ZuqaXrjeyVfN5OepW6alB0RTS7M9u/dm25t930/WJ89+9G4Odzf39m7cHBwUNU02tk9ODzcvbBzcKTsHIxViN0okVZV5ZxUVTUEOWKohpF4uN+HsohNelRVht7f3pk+9tjlj330YwDHpvIEx0WkqLRZkyHb2pomheTcoZsvj+6Mt5tucW8ypYrcxevbWxP+pV/4J8USyqLmxZdvfnn14DXkOaRbT1bb1PkYg53CK5iJ1oApghgZe7hJVc8etYatB+DkkTbKdBMQfeRSaWdBsidFB0N8lJSIFBx86Nou1nUpklIe8iopZSKA+Ph4AZFS+v2DFZGbzxcpJ5awGQBNvRI0ZyFYTmtTGDjJjTNOczIKOtWQZkJM2zuzvb0Ln//854koBO9gzqlIKpKLtqr9OjcJmBWYaJHM7WzsLuxE53hvr7n02O6D47uf+JWP373/8t6lLVh+6fkvre7dRHuIIe/EHjr4s4MV4GGe]],
+    [[yBl5ZSaDYYC+GHEETUK1Vc5IgNmAfjcz887XIiWJNT6I0jCkBkaozhR3METIe1MhdlVVde3Kh1jaFkTw7INXI3K+KMAulczMpagzgUqWombo2zRE+8zAlESquurbvk25JHjvnKuDC45HLup4NFHVlNLOxcsHx0cqEkIgXld7FVOQ6jCLoQYexkAgTd2A7ctf+pIPblQ3AEQ76cxMAHVcnCMzFpW1FjI1zyrdnde+Mq1HzvWHKC+8+Bt9WSz627sX6+7o5tdefj7fuQ01xCHmWHFVaerQr4AQxpO8yshKXDkPDgTAKQDOhUAVeMI8YYpEHlCFwfTE1vGT2W5KhcjFMDLYMJgGH0bjk6qjra2txXKxs729WCyZuaqqtm1jjDlnIhLJKa9CxPF8f/vCzsHRkZmw4wGk4PyYiJhIq8ozLw+Pti/uHB4eVVWoqkrFRz/WrMFNHNcAx1CrsxhGqhJ8HXycjKd9324mjmCDvGMiHVZeUjaQoRmF]],
+    [[ne3pzVs3mTaVHqSAsrP1zCUxw4DXUxFRJTYjgxXLi9e+9gVHu76aVpNR0tXVS3Wo5DO/+RlrV4gOxWAMizAoKXKHOAOHXAi+rupx1xbnggCADimpQupCbJo9o8b7oPBAcUQiZuaYijH7XFyfior1bKNmG1gPgEilG/DC8RGx23pwX4gbZiaqUgIs9j3XTa2aV21Cf+w8331w1whEnsREinfeMeXcaRGQ61OG48N798Dcr6DF51azN9ZGUJMbEZGrIyDMnsiFEJgxm4QjUSJTVRErOsCtB2VkZzK8GI+bm7dea5rGilShxoAdouJIQI5YzFyRUjKXUoio9C3WCltVF31Ls3EzqUbz+Z3RLHar+YvPv2AP7sBXHBslgkXIYGIWQ4+0QN1cu/H43sWrn//cFyfjSZt6GxQzDbE3A4XZ1h67hrlmAojVMhCIjdiokGeuCQYVsWLrIiOncNGPT2olQoxd100mW23bAw4UDKocn33Xs7sXLrjg]],
+    [[jxd3fVyt+v3ZbLZarszMM3LOwfHhwfFLL7+4PN6HWTUe96tutLWzavvgGx+aXCTE6WR0MfoJu4agW7OgpZ1MK9FS11FV6yY2tfR9bvu+T3Cqfe4FZlaMnKrnzfp2//59QE2XW1uTGB2gxASsvVMiBrnUc9/n1JOI9EkHbC9BQTA5JpoeHi5jPeoWx/s3b7ogYTTJq05TizAiZlAYlESzdSXlhWi5c/v2zdfvjpopgL7ruPYwgBjmOYyIp+S3QDXYEQAyhoNTqHcm8PAEp0WDo1L6ko9dnAhBwV3u2I2GB3NGoWpyEsdBVPouhyrC03u/7X1/+Pv+7f2jPjRulY6cs+g5OPYk47qazsZVpM9+8bU/9Se+HzkhsFmIdZ1SIY51vaPiY+3qZmuRsTUZFwrBGTl57MruH//+7/3eP/y+lFEEKallmh8JOfbR4ERJjVQsEY1efH7+3/23/+dPf+JjIQQRvO1tT/7sT/4/q6h9WfXSp77PJTGf]],
+    [[LOAwsy998as/9Of+UgwjZi5SCGJQgxb0+/NXHdfLjrIU1ZJWQ2AjkKsYDsa09k+9o5EkgT2Q2urR9mrVsvc+kEhi9myRbAraG43fAp4Zj2zABtBQSgFTUiXTTSKXTRlFpDf18N5QzISwjhWrlo11BMfEjpkZ3lx04uBHTtnqyZQZVfSeNZqE4EypT+iyD5OLuTuCFtDasiJypk7hg29cGG9Ppr5u6vEIsnzr09f/9L//B9/3zY+LoVhSUyZV5ulW5RxxAHlXjQCG2Oill8rf/jv/j+e//DqRi9FL6qvKjWt4ly5fmxRMZEDYn0knjL2v61EIIefsnVctmhWkRRKRqZlqUXUD+hEGGDMHzwHm1XjoLZiHxRAm2Vogm5kPrkhSUhhICRQNo7rei9VFcAN2IkIwU+ha06iqqarflDAooLn0IVRECqhoIeoHlIcO4ENjIgoueM8uwoLFyKKoG9/l5ILzznkHz+zYk1nOGRRSj+3ZlXuH99Ae]],
+    [[kY9Ym5BOYKbk47jxWzGOptuT0czvbI3/6l/5T556HKLousHRdUwMFl+Jc84FIgcxdCs8/wL+9o/8w5e/2lXhQu/u992hayhUyXvE6NdGIlH0HqcwJGSgqqrpZNJ3tuqOWFihRGzgtWUIwMhsbY4zO8fr2jwmr+aZHeAMXNUTZ6XL86Lw0fd55X0omWDeOBhVoZlWzUgcjAxQNhhE1UyLQUyKafGgAipr4BhpkZ6kI+dBycCGdX5mE6XgpvHOCzs1Ry6IIVcx9CJSzFShHo7qaogfcSmQzJPRxUO3nSUN2TRsCp198CFUjjGtQ6T+2sXmr/yVP3/9EsRQFM5DszMlGIhJkEBqFslAhN/6bPlv/sb/cO9usjL1TnLbActqMgYVIjjnSzYl9WdSOsMIBICIrly9evfO4ao78t6TUpF8CgdZ59HiGi1pbOpANOCjiIMNR5qPoYEBvQiV6Nm6bCEQOTUvaJSia2bivbGBipkYsmoR6cxELIkk]],
+    [[1eKZra5j6ZZqhditQ2yWGWzaDbVJk/E4l9LEKuci1k1GU/I03h5fvXZhOgvkIRREPQzegQ05o3Jw7GKA40nuq9n42oPDFcOAYsxVGBWRre3xpK53d7cY6Zu/5bk/9+f/6BNPriXEZ5QCSUSAOAAOzpMPvkII+KVflL/1I/9g/4AUdV9aMtm7fLkvcCOazWbEqCoUIyI6h4MfsEOEJlaqErwfj8fL5dLYnDghrH1a4hPHCgYmB2Ml5yiORjOFH2ADKt5xU1ElFbV5v1ihJqgUQhRxSn62dw31pBXVsmLKNREsm2ZYhgmjKAqh+JQ6kaxWCGYn+QBS0CmsY9lmyVlLk3OJWoVg5IGY2SmoiGouqe+9d7UjOA8tkHV5GHLPjMbRNnQE60HquWL2W7Nx6pduOkvp7vd8z3f92T/7hy5dQiRkSCHDpoRvU+FjFEIWaI9/+sFX/+7f/en5UdX2tlws2PWWl2xWxbGL5OPo4QqP802A6EMdq4XP]],
+    [[zrngvEEEgA1X5HOBAGOAmD0oDui04UOiEEIFizAO0doyz7ljbwAROY4jNDvcTDN7AUMVKAaYFtEeUGIx1UH3+KxZNDHUec6koAGEMgzA2ryr6jo7raJjZ7F2Ve3Io6lcVTnnIZJFOk8zUqQETeoZzlkBk1LbFrZRCDOgASmTEIcYa+fczu50FPvv+e7v/Mt/+Q+NKhTtDWAjNi8GIqwR7KRKcJFY8OM/8eX/9//4gaMjqPnD1UFVmclRlv2AMptu+XEzqna8H4J6AM5hldbZeUKMbtSMYkwhhI7I1NbgeOOh6gbmQARjJkfkiALIrQfGGPACmozGORGsqauqk3upHIHJnJmQi00cz2Kz1atXYyYFyMygAilAVhMzgRbT4kWYqeEQRAUbhBqgIDuJHxELY1gqCoFBhQCGzqbjrbFfJus78TH2Ldq2W6Z+d3tSBk+QQt9nRvB+DAoAwzE7bqrYjON45P7w9/7+P/OD3ycFLXrnRUQIwZSG]],
+    [[0ALzuq7CwNnw9/+Hf/FTP/mr+/u6Wpa2n4vlbCVyq3mFQFXVxGri/RiGvrfa0XnOjVMRcA6hrpxzzMzeOe9zTpuV6aQHhrAaCI7gbCg1JafEagxjH0ddLjAfYh1kK+UjLUuiKNpMqgv16CLDOVVCYYMbYjCaQUWkGJJIFu1Viw+8O6gd1qJdh2Kae9Q4y2IgGQYtSWBGRn03n0xGknsWySspfecLJTEC1aE2P4SORYxgiNH7wN2yjGbbRCsOHCuw62eT+s/8mR/4o3/kO7OAPQxVLnngGSGYGbHBOcznEoJrFX/r7/7yhz/6hXt3O83Wdys2raGUc07zCHaElFJ0XKwAmEyoKMjOg1lsrdPMUNc1mMDETOsGWldUGzM5wAAlOOYAeBh7XxE8ETviejw77nt1EUzzrr969e0vfPXIBSfLfjS+UVXXvFay6mtPQyLdjLqcGG7Q7U0TDw4Oia1I8dFPlGCksOJQqRVy8OerJ6sqzBfz2dbO]],
+    [[crEgDPk2BbSqmqpyYmNVtUQlQ0WLyLgJIGcoalCBCxXYxXGjEra2t2ZbkzrwX/zhv/Bdv/ebFi08o4RBQQQ2daYDwEWIxTCeufv38bf+Lz/9qS8c371fIAFIJolNCcUhwdaF4LqpAHj0xD9RRI/6lgEY66ZMaHMknQRdB2vUTA1wIWAoPiYoKRvPF2U8urI8fgFupx5fCmGmApgw+mHcxeCIxAoTEQsIhjzoEn+Wp2EdJCUrUtbO1/pz8Y4Pjw8cMxsYCrASG1iAwpyJU4Yq4DhQtcayMUOQBVU9UX7QTCddH1o5emxn7y/+p3/h/e9/RxbUDRyQBhcN6mFeiEmEC1zd9zg4wN/8bz/4W5+7v7/orSRJK0KRsoQVWAEloqTWgzygRmq0DhO5R3X2ptTrTWBetlE7vCZgWpuFpuzADNFixIGrLHngx2L1AHdtaZoLy9WibsbBx6RpOJ/kQsREZMRmJwAVZSMyZSib+pTSMPyiZVTXIllZ]],
+    [[Y6RcTtevuo5t207H467rcMKKYrxKskpYJHQ9jhelir5uECPpuj6XlZBMXQxKaEZNpnjj+hN/8S/98DNPPXk01709zgXzHlUNUjAzGVTVIYBIFa++hh/52z/+W589nq/cqu377lhL55EgS1hSFCC5IGZDCOxN6gBwStJEZ0blXFX3G3ECpLSm+lHn4BwpaynmfDRW1Qznh8NgYPZM4eKFJ4ioKFS69QAbEdEa421kNASEFGTMZqagsrH2DGzouo7YINqVItL74AGUXByZSe7apYpyxGAMKLxyOO6QCMcF8D4L8gIg856K9ONZJRlgUydxXKV0fOPxp374L/3g3tVL81Y82+u3LERmZ31W5y0EVwiBWRLM8KUX8Nf+xv/9xa8dd2W6bFe5m6OsVFZZV5ClWVvKEtoha1UFg4JGZtJ1q67DKA5RhHNsJSfgNLeRACIiYgciIhXRTbppWL4HaWCvxAIqZhSrYJCUV6JBshIrszIHESMOa02G]],
+    [[gk0+kYzMoCYGVmIYigigJSuhqBZYfvMy1ZTKgG/JKSWSks3EBMkncKacOJeu2J3D1JNbLtMYDW8wj960iPmMnFG4p5Bcpe953/v/3J/9A7MxlvM+elbPjqBinkiInag6A7lFxqzBxz6e/uZ/9/f35y7ncZ/6vltw7q0k056sJV2ZLUhXIivvvaEoDFTEiqiIQgWmp/gcXrsGtpmVYD6hcJLB72F2p5YPD/YPb9Jwa7tclQZ6QrMTiGYBwQd/cHB3Z3eLiZP0MGY+W1GqA+7tBFyimsxEtFdVfwL3MDrH40Z1iNEDSGRVHUqGD8EKqirEKlRVhbpS+PkqLdVMHaT3WEeWvFqR7JIrhaqJbV2unnnH+//oH/pW8zhawrRqIlJfPKDOipA3dTAtMHJi+NhH2r/7d//Bzds5xFFu56k98MhSOpWepAcSrDNZSTlSS+DGYMwB0Cwli0iBFJgpSDaVl0R8hiqLh+qzTVaTAKCUPAA9AGBdm2Yw]],
+    [[riq3GQNSLQpWYgHzSakBpaRiepTNO3iIGxTOKXcikYFPGV5IYcW0hxYT3eCCTrTnZmwt58wCwEoqmXMpgJogl8Sl51woFzOTJMSxqpv+qM22LscNxFIoJC9SXAzPPve2tzzxTFuwPFDSXMcqH6GOXkRDITYV5zyRMgnwz37h5j/+nz58uHCx2dm/t394uK/UziZxVVqnS0LH3OdubrYg64Fk5kEEqFkxKVq0V/QKkrU4AqgqMqAoQOpogJNuyoYBU1PS2c42wAOJzoCCZXIAr1atbhIjamIwMiEipjSICoNXq1Uc+ZIWyhEaSYmIlMA2GLluUEd6MgBQskymjsSf7f0QQoyh7boYxxLUeVHVTgs7sizsQlVXKn1VbxHZeDQKxGQMQXewCoGLqRQTVeKYMlxLfU+7WxccRjmrCHetEqjtOzY47+tAzZiq6ERyFQM7/MpHv/r3/94/0lznLCa6WB6xT5G5Wxx5O2a0sDanudnS0BMnQAjq]],
+    [[NoRUUR2pLboM4iZQpMBMzQhFNikqo77voq/NtG+7btX2fTIzQI/n90/DD+ZjrJtmUsVqMot9l4sU6Xtf1VgTiyoIom0pqgIiB3PQADYiNaWhEu2sScDnbTIHcRgywKeHaUoFQMkFgFhyJiqKlBLz8JcMpJRSRxRj33kmJmfmzENMYKykBl8S554SIyfab3PXpeSy89PgHMMGFEMoIHa+gBmEsFjgox/90j/+6Z8rpRZBMYV0RqvAJLklWbC1bMtcliJLQwaXARBpGwS1qTkiUlawEOcCZooORQcuADtBT+g5E1RkvQyUk2AcEZuJSOoTitComRwdHfngsTHNiUBGOuSYFcQeWoHIdE0qa8DG7Bx6/xzdxklsnAA/AAoGZDHpSSAI+G04aoaHMvIc4IVQFKo6cDb1Kfd9Zoop59QOKBq3mC9nk0Zo4KhVdiiCUjwTPPAzP/UvPvrR3yi5KXlhopZbld6zSG5NOrIW1uayzKVTSyChdT9u]],
+    [[giVrs+/UmhQp2bw7A+Z+uPdPILSktrmrAZvDZLBcespcxHg8HvvARKYbgLAOiTGxAYgEqKqRqWPZxItgdIrtFOBsoebZnvVnobwxxhhCUYkRotF5U6edaoyxF61CjDGQUoyRYowxOmYlZubKo1/xBqJsKaWczLGmpKoUYxM8q5acFSQMA4SJnDrJEOAf/uhHf/Wjn2LX1LExOdb1ettamZusCJm5y2kuslRLhkyk558CcqaWT1VNWQSezIxEwI+Ijw4TSGBiNiBchlUBBAUVM2RJZsn5JqVuPG4Wi8WJ66AmpGqmZCBzWsS59ae8jikxmZyFdJ6tYByqYDYDMCg1gKGq2vWZgZJS0c7UVBWpE0eWe3EkRI5923VkfmzmQxgCBn0/LFlkJqnPAxK276RtE5l27WprOtq9MC6Dy2sADcScBMM//NFf/swnvxDCuO/yg8U91gTpUVYmK0+92DL385QOiRKowIRI3abafSicGnBOfd+Dls1k]],
+    [[PLhdqioKUWbdBPWGvhOlgKqqcs4DucSQYNaBV84YhLULRuY4Os+59NPZ+Hh+GhpwZN3ymB0zB0ca4ghQmNqar2FNo82P8rfVzFRiVbVtOxTinq4Bbzx6LRk+aCghhBDYk6s8k/chhOC9GmkSMy7FStG+y6UQzKsSkYOxFI0xOBdVYEYwpzCApFgh/Y3PffXzn/vyctmmVMzEM6n0WhIkoawkH5vOIXNgCRZQOSErGJ5z4DckA51JvKiZQc4ugaIDQsSGL/teiViKDDlI1cEp3eheFDUQjNg5p6W0Csu5z7n33m+msBAKDdTZBJIW8IZs8EZhDSw3NuYBE3V6YyeYVC1VFYjIDxVxwHr12IjGucHo+1761BObqVBhHwih71tjKlkHUH7O0vdSihF5G1KrxkSuSN/42juX80mZ8XDbToo999zTX33x9c986tN9Purz3NUxl0xSNLekfe7nkLnZnCgxBChre+d3WLIq5QSYpUqW+o6YBty8]],
+    [[iKoW1ULDUjywTJsyFSawsyoEdr6qQ1WH0qfN+GdHQlA18yBThekAbylMNki5MYGGQNAJda+ZguCdA3S1Wj3xxBPfEGFTjEFFYgwxRM/Ox0hVjDECEJWMYEx9J6W4DZ8Y27A4GEtRIucczuliY3YMmCq++3t+z53bX0vlqDtYimZTNUnQleqxpn2gJUrMcj7U8wilvo42mA0zTk4QmMqisg5NEBGF1Cuzl1JOIJowO9FRZjasmuwAlFyWzqSkSvJSTmvWFKQODBqil8yaAVYKUDtT6ky2oftc+4EEAFmKir7t7W+5c/euPxeAtc1iQbThACcMF9mgSZtRpaSqZTRtnHNVU+WCxQJ9crBgvaqqGREPQCSM6xEb2lZiRUSDD0ogC8FBxVcgp3/hP/v3/w//x78u97uEklOL3CPvo78Pt4KtK8ofgcl+Q+SZVEspzrsh3qkEKQZoStr3rRGHqjH17apnV/vgUkdmNGBF4NaxaNXC7IukXHqA]],
+    [[QWAXuk5T92Co2hxuxVNtZgCpCWCKQkSKrJQB5oH0wVht4E9F8LGU4mNg5r7vn3z6yVu3X5sfHvyOS4VKKWZCbM55M8tiqx7LVVF4LVjTWw8g/SEs7N1gdDKz83DeO+eD88FRiPBBXCjk8Od/6AfH0xqUgCVsH3IfdAzqTiY+PwovT2ua27WJX4pA1JML3pFjAxdFysiiufDwEiWxcGKt8ql7cHr6gfMOAKBAAaWHX2dU9IBYVdIhIbFOHW4SiBvrVnPpmS2lbrmc33j8+s3XX10uj8HGZnL2dQYm9KYDIKrMPoTYZ8vJui61ba+y5kwvIqanxIbe+RCCd855eA/v4D0755wfxsO8N7X8zDNP/Nkf+o9yXoDnsAO4FpWu8TLnqJq+/uTIosIO5OFCRS4ks1QkZevE+mypmAICMTpZfm2tgobqUKUTPuMTjid681qJRzKV8gYdetYMVVFmZ2ZveeaZ/f2D9vhYVQdSzzd7PaLRACJVJgTH]],
+    [[tRTturRaJZE1+2URyWm9Uq3xs8zruc/g0xe79cux46OjI1V7z3ve/f1/4o8jL4AOQRE3ZWjfQBvK0IYpwIQQBuIXUnO9UFcgClFkGcIEpIqiKibDGMA2Q7Fp38hFv5F2dvBSSpcu7t18/fWjoyOEMIRB/RNPPLN5BtEibdu2q5Wiz9IbEjPqUSU5xeDWhp04Z7FrSwwjQvQcqjgUHq3rY4csAjOZYWur/uqLrzz11I1RtU7GYhMUZiYRl7OlJJPR9vHRCsD3fPe/c/e15z/0T3+sHsdueQhmnKc15U1BJDa6eOMHaN/lGNnUUpLV0rWdmg4WGmVRgwchZSkKTzyZTFQHIKKaKs7unwGcQxMxmVnXdsH7zRUBsNoQXDrf32ZGGkLs+xx8RbTGSTMgaltbs9Vq2bfdUFYHNQb555//wsmPB5ExMyC7mEHrqqCzJfcDZ8oAHyFyxnBMNMA9N/egZmxQQQE+9alPdf3iO/9X71TFJlMGNqQe]],
+    [[asTCqSd1SD0AeOAHfuBPv/ril77ypU+jV/YRWr4R3t51yRE7gWURytSnIiBTNRt2GRmeTWsOIupCtZnpGyE7O9L/C7bGCTEGH1QRQ8h5fU7vw5UrF46Pj5erFTvWMxtceLjF+q2oC2GYTYMjeRKlcGdKRA1h4HiHcddLl3nVaconSQUoYKUAYJAZq+gnf/2TV69crmp3aW8bMIYarO+gSszoeyfO9b0D4JT2tq/+8F/8L//6X//h+3e+amVJZAYBbWI4p3MQm9DNaSMyM0k5aVeWvZrRgGo9yz/aOJe7HIKXc4XfCpzZsodOr3F+Fw/eXP0UcXTSl4Od2fe9CnKfVYx9HHq/qeu7d+/2bQumUNdnL8wo3folS9GVWmvoDQ9RIJ7/iXmYV8SjeT8/7hfzMj9OamQgqDMNYk4KUiFVmNHh/v4H/8lPj6uo2aRQX1xfQpuw6nnVo03cFeqK74rvcixKs90n/tp/+SOh3lWtiCvHJ1TgG/Da]],
+    [[pg3kjkqnITYzysna3trelr21ifrMXaFeOKkr4ggoxbyvzOzc2v6mz3v+2U8XSDU6JzXD2YIPMYaBYgbGPoSmrocy/3o0qapR7gaPYXjBw8Lm8mY5gx17IiI7Iya59ERk5hmBKhi4qbdL5sP9rkXoet/2tCoYUuqqhciCY+fNO+tXJS3blW9/6sf/P9/9B/5dc+NMoc95eytAtaq4CCMhRt+utMBiT7Ox37r8xA//5//1j/w3f9Vr26d9tbQJ3K5Lw4cbxkNLJ0HFVgtsXRx7VgOZkgFSCjHB1ktKM2oOD45hg63swLapuNvsy0UGGLsh9a0gt+xWMOYBL2084GehCS5CDKECeNhlRHOJ1dgFMnIABR+PFks2SM7OETkPVCqAJwysl6GerccTmdjMRDSr6qlo2UB/RARP5E1hRmZk6kpBAcOYgZTBBlEWYUCKEy8UWELgQJrbxf7d/uMf/eX3feu/tYQ7Om4Xi5UhV1UlpYzG4xhi23Z1]],
+    [[Ry7WRrTVhOfe8x3/4f/2P/l//f2/UwTj0bTrkqown5ung/XNa2lQhZhZydR36DMrTNYUrw4CNjJwSWBFXY/esBvcoySAdO3snVBPr3fQQDMO7Woxnc2Wi5Xz1Ukyh5nVYEbj0TRnC77yTqsQxRfnArF3XoUYnsnBsfNUbQbAktgaRQ3LZyLnbAIQGXlT533lfXTBhxDS4PlQUIIUCCAKVSE2GphfSUs+NmpLWvXd8uUXvjgaX9i5/DbioOLMvDovgr41E+s7kNni2JzCC22Pwu/7/X/g9q2XPvBPfnzZzoP3Kio2uNND75zvK4NjVrOUU9dJUc0n6EpSAA6OTXMJzjAejx62NQmbYBwGdkk7IQ7cwHUJbqgxYaDtEnw1P16AvTtF8rISE1gBJV62K++0FGM2EVUYmWVRIYYF0ijs/daFq+solebRqHFenaMA5pLdZk50XUdE3vsY6i7BN9v19OLu3kUpqgFMUEFWJWWDqOqoqb2H8xSd]],
+    [[HR8fptR5D0iyMv/SZ3/9xipfeuwtVb0tm/veiBRMXb+Shakz70GX96bf9/1/8tVbX/vyb306L5ceWrQM21I9PFXPpGJKzn3fF2bZrNK02cyKyEoGOzTN6GF3Z21WDhYRg9er7VCGSXSy9+KQNcN4NFv1q8nWrGuL93EzAK6ojEbTksXUARxizWxVbDJn7yLYmzNGJG7IRXDluzYBAImZ9P0hkYHUqTbMbiOkA3jSOy8CdlWIvu1S32U1Sykte1u1gAS2dbSv7/tcrKqCg4a6skPr285y29JtXRze9mF3e1bt7T44nJdSptPpcrEY/Hm2oAIg5Ky37h07P6mrnf/dX/prf+O/+N+/9PnPRMeWDETkCUTDpF0DmJmIqBSNwMHh4fWt7dGsun+4NFV2nHJyA139eoSkaxMRqQ4Kiowfwfm4lgVyME/wIB5IhNcoPoGjKicbkE8la1XFnLOP0dT1XSJKWrhdZmZfcu9D1QorWDRU9UzIT2c7]],
+    [[08mWT8vVIKSqqUgClNjI8iL3J1m0gZV8kABwHVeloL16dHSFqCRJyUDeTNaQWpCZSdFWV9LndSE5PJmizFWOjh74r3zJza5cBtF43HTdKlS+ipxAPlII3Pe9I55Opnf3lzu7dVNf+OG//F/95R/6U938Tqxr0WxvwqQlRUxtCDEv5qmqquPjxSiMT9UMUV1DkhuNRzHGNq+MNhE9diA6AZIQETPDmBDWxRoY2P4ZYAWYHRs5DqbqOCgLs2emuhozM5GPsSolr0049kaBuSGMnK8mW5dcCPU4fO35L3OEREg0Wb+BRFMPUe3F2uFFnMll4kwsIB2IS8bj0VACx+4sl8y56SNCsJrQkDCZpPZ+zvdS++qDey/81m9+zHk9OrwD60c1D6+m4WrCHKyTftH15ur9I112IdR7/9V//Te992YWNrz3Z7OsbCC1IkWkiIiUklKaz+eTybTv+7P31CYcHB2XnBeL5bl79Y6dY+fgHXlH3nPwHLz3]],
+    [[zrswvJyLw8uv3wTnKu9q8oH9+nMpKsUAZg4x1M5F76vga3IV+WmoLlXNten0Oqh69dbXQK3v2qPTBOnAHQoFFToTknMOA4aPHQAuKg6o63pAUQBKFDZ2NAG8Dq/bUHcfWD1pgHF7vO8aiy5ouf+lz36cg79+7QnWfHF7Fr0zYx941ECq0fx49fqdw52treD94XE3i7iw/eQP/pn//O/9X39EJDEYUFF1zA9t3yfmWuXe/PFiMdveyUmJgg306c4rUFdofVWNtziMRJYKD4uAwdeADrEOYgITyAMeOgJHkAOYuNahPonAPhAV+AAq7KJTYVc5zctVG2NdlIo44mgUiUIRMlTeTXzYdn5c1N+5dR8uI3ov5Wi49bMctRgSpETM7NgRahgko815uhUMvu/7GOqqqnIJKZOtidKGFY8AOj46Ho8bYl3Ojwa+SxKqmhHzPPUHuU+T3fi1z3/iLZevhiKr/Tlv+/GsSllT5sOjHPyISA8W3LWp]],
+    [[rkbVpfrVfXvre7/3D/zBgw9/8CdQHpTSASLG/sxeAkws5G89KDwtTTU+OlbvHXMYJlXOYFMVGjfV5Rtv++N/6s+irFbLfdOurmPOYsiCbJCtra1UpGtLThz9lBAxbMxlXoyGnZPrUVMkBy+S+8bHUZx84Gd/ruuSaKhHE1311ehC22k92e17NM2kiuO+s8lot0t6eLjPMSqPqnrsQZtc85oUeq0sAUdEjj0zi9jpyJRizojJ+XPZNCIylSJialVVsXMntgpjTSZnImJqlAhIq9vk+o988Kf+19/7A91ifvXqXreUOHZth6LUr3LKPNtu2lU+Ok6pC9vjiUP/B//IDy4ODn75l37MIYDZNCudS4+JUTafSmDnghHI0Tlvlbse+wftZLz17/yRP15xgvUhUN3E6aQmBnsQC3tXMtoVUsb+/aWqK2pmtFimITGhxPWoFpWmFtO+IY9MP/szv7BY9uzC8byvmukqWduTetdlFApdT02cKHh/]],
+    [[/85sd+oytHDq7U1TkkOk2HnHfC54VETA5r2LIVzYvRAl1hm5QDMkIyUtRZxj3xM75rVMsJlCteQClxUMEuYFlFLGRz7yU//hD/5nJDqpnDF8BVf542Mbcbh3b9n3MgA9bt0+WtVlu9n6vh/4M6/dfOHma5/t0uGJGTlsjJRz9kVyzlmLEzIjI2Xms3toscJc3RVhB2OuYs0eudjBUXaeQw0fEIGUkQQpw1wsan2RnHXVFdsURmQqxOIiBwptllkzdlW1c+Hy4fz4wu6Few/mO7sXKaCZ7LqEutoObhyc815dtJwXakJUR45vGvZzQz08MxOrDolGU1EVNVNm50Mgcjyg8Hid71VNOXcxuhBcCC44DzXouqRAVVQUqpDSHt/t091ueatdvv7Pf+4nKpdzK9JjtYIULBbLlHMpmYmKyPHRkl2z6Omw4/tL/vf+9H8aplcgjqqHiZCKFFUtxbJYVkrKvaAr6AW9IBccLbBsZdVpMdcm9In2]],
+    [[j7vXbh+ueu4LiTohd7TUo0WZL/LRUvrsVj0fL8rBcddmdIn7nruErpdUTM0px+nOWBk+jhZ9YR4vllo3233hrlCfXcouZQ5uOj9OB4fHRWRxfCx9jmG0Nds7wzk/ZK0dE5EWYebtne121XZdJ2LOOSJywYOUCESOyZWcBW4oZ1x1YIfRuB6N69Wyq+tYpPOMgbvWzFLOGHJPAyOIJM1CLMv5K1/8fNmezt797u+cjq/mPnetmdnR4VHTzEx5f//Iu1hNaqbqtf1FILowvfKD//F/8Xf++79qq/s8DiduGZEbj2em5p1TeCVna6QzSkFOUop58ikXx1mKjSI5F6rgm1Gzai0V64ryagBKha7YfF5SprYtXTIVX9ejXFDEkqR2mWZbdZu169Lu1ujOnXTp2uOLxSuJyYXm8LirqNJs49mlkUVYXC4yCtWjJvnGNxPvfVNPD/YPz6mgWFWi4p1PZtevX79562bXdjBzPmKz0J31QouIAmoQ]],
+    [[w+laYlw33sy8xqDFzGBiWkx1IKA3ooFfDKlFgACrPn/s4x+s69E7xr87IYxmMx9iu0pd1xKiiDjWrEMkzjuqR9Z0OvuT/8Ff/B//3v+pWx16r/BgKvDIJbddu1h15MW7GEJg5iFSJ6JmlFQkwxGvPAHmkhUlEagKJ/Ii3nNVVURIQkndoi99MhUvBmSngr5IVnaRFV5BRuW126XveoM3H7tViuTMornGj6u63j1apvn+8c5oKwu6VldLu3Jlq+tXq2W7Wq38KbCAMJQrhRCeevKp23du55zrpn7Ijj7bpJRCWpSLDWj6dZW/Dy6n5JhM1hvLPLyTu4HgYWqppYgwiu3By//s5/5hsz278PTvOjxciGAynsznrfNcVbEeNVlbZTVjsnB/ngK2L+698/d/zx//6C/9eHv8aqo4ck3OUkqr1Wo+n8OPnJMQyroGEnCOCT5nk2Tk1HkByAUrqiKSUmEHr/CeKmEi1/ZYtKnvTYQVIIqpWFFk]],
+    [[pSRoiI3IBgBX8KFq1Ln5os3qPQeKPtaz2Xh3vuwO95fj0biUfn58vHvhwtNPvqvt5u1qwa4Hn6+QYcda5Iknnnhw/8FqsYxV1fd98OHECjKCwjO8kC/EBiSVYjyEmdyaPE4hmlNnZlQybxK23rNoASeAydbJRSVY6utxyZxI7v/zD/74d//R3Ti7ylTNF8d1PYlV5ZhHo/DgcGWshTwbevUlx5W6b/vO771z8NIXPtfnxcKrsqhlyivqlgaf2KMEMLOqOudijN5RySUnYdYUiJmq7GAogrYt3jlvcJ7arhCh62V+3AXfmK0LjFQ4iyUxEVLwsMGCWVy21kQ/3bm8dWExn9t4fCHWmG3v3X8wr+pJrKohDHX9xpXpbHd//2DZtX3buYkP46mvqirnEoLvVi1xeM/73/vK116ZLxYcYlEj9kXtJCPmXJyMt+Z91RUslDVrgZI3R1R559Y7RIHZlZRS6i0lp8zKhU2sbF2YzOf32QAwZQ/z]],
+    [[rBDQ4sF+DJXLtrz31Q/9zE9/9x/5D6pRuDCZmI8KqxuvZs1mZw0A3WrJrl4a5cXxd/97/9Gtozt3v/BpU6yOliOQ9uP2KHKtFHrx4r1nZgi60jMKMVXeEzsVhsXVEh1BFGZ1SsYJYIzGEUDuuU9tLnkod1FiUzfg150LrNy2RkzRY7kyqmm+4lXfkJuq7YxG4fi4Y1/tHxwQkSSZbW+XnG7d+1onuW/n2J1V27PpbJu9D8MY1KPmfe9/353btw/u3Xlzsn4cHhzCcZ/6NuWcSkql9Fr6UvpS+lT6VPrSL7vU9VoUZlQKdL0OHx3tb22PT9AyDCXAwRyK5mVuH2jaf/D6F37xn/3PXlfzw7seGjbbPwbHFXNNPGJ3cWt70kyJ606qW/f6P/b9/3GYXCHUKJ7Ne4qBq3EcTeJoHEeNryuOTjmYcwYWM1ErsML9QtslVkvklV8cdoRAiMujfPwgHR+W5aLrlhniTMmMSFzgsFi045pKXxik]],
+    [[Qn2LdoHgGUDT7Dk/YR7vXLj62qt3FZ4QJ+Mpk3v8xpPHi/kytRlACFfe+uyNt7z9yo2nZxev+C71g3nztmefffHFF/fv34cPOQ0sU+cyogCGvE3XPvB19JKO7j8Qy+DsyfXo3QZmmvsyrBxO84DKcmJgFMHR0Xxna+f4cD6cDeej+ipH4NduvtD+2q9MvvXbvzvND9WiEnTYCWwDz085SSlFRGXV1A4L/NAP/ZX/23//t9S6NvWSW5Vl7skJk/fmXF2NwMxr0KrBQEROPDmwDsUsmE2mkykcg23MDBdh5qtQw1g266RndHHcBKRQNQGrHvsPsFrJbOpiBNHIhYod33nwOlc+FTGjupo9cenp+/duLYvEytX1bhMnO9tXXXRUAaQ+xJhTet/73vfy1762f+9ePRoNvPNvSBjBBvMRCdYiH/+zf/xji35HbBeYOQ6RloQBEcTtamU5w3sPGTuzwWeBQ2ZSf3yw3NraOdw/Ok2AbBpRZ3IH]],
+    [[3f5nP/0LL73wIvNOQT3UGxMPu8CvQcSDkxgcOxKvy6j79eQi9yXl8uKLX8hffaHPyTkfQmD2QyzEMZtZERlIOUKomqZx62+VXAHy4MArbNhpqO9zqJohsg9jMbeG6JESZwU7mqrFuh7NZrOjw9775uh4VQqMMBnP+l6CH9+5c9gXM1+7ZjSe7Y5Gs+n2VqhiMwoxev9Hv+9/c+vmrS988Qt379znqkoDWIDJhjIPYCCkNqzNJGEFZUl6tEzN1juzcckixj1WjvKguwIYDLZMKLnvSHuYMANFhAxw08nO4f6BbpgFTgJqjCKU4Co9en4peTy6Qbwl4rKYrLNMdGa0iA0Qii7VLs1XCd3KTS6++spXilUCozXFybpMdWC/qOuBTdEDgzcz7HeLgZSUORBRMSm5pJRUEKrxZgC8ErMP3kX2FOqybHviyajeivU4l5xkmUthjlXlrPJbO7v37h4oWM3Ndi8L711//BJT3tkaX7u2VVWYH+Po]],
+    [[oPhbN29t72wfHBy+md4/CbasixlQ1IRVVZGPXw01KUyVnS1prYLWWmvILZFl0440McrmowFZpKDyMLoWcAZlWNmXeems1NUVT9tqXkt3Ah1eS+RwibWnnVASvIcnQ1YRDDtwDsXTA86YHYBu0WKNblqjcTebIQ6DFJhIYAOrqKNYrB9SAkam8CROvJC5zlSFyLTv+y6JmaoWAYu5a4893rXp9t3D+cF8tuOrST3enmxdmSy7o6eeuHr1cr23hRe+gm5l8+PWf+GLXzg8PPrO7/yuX//1Tx4fHz7U+2dHxdYbe2VAIZ2TouL6Iq5JjipIz6fx1MHEVAzFQ5ZYk/HgE/gT9C5IBvfAnVzFmMURqfmllC6tikpbhyc8T5NmO48cIQzdn81KgcBa1GPyatJrMujplirrHBYzMBT4nm92EsSFZyfAUP5lZsaVs5FinXM3eLXIFrKGUgIFT1Ta/tBx8L4O3DiuXDObd77tuma8U5PfubI3GtXb]],
+    [[l5v6Uveux564cYnvvI7nX0LwuHNrPj9u/e3bd4jcr//6J7/lm7/1Qx/+8PqGSIFzm3Ou635IQASDiZq0RIcqRbWLox3N3UnMdM2ePyBbh8nOhag7e8JH43AGIn6QIjnPkg+L2Cog1pd4fbqTKpJh1yw1ZAKZGjTB14F61QIpUHcSJyUikK5hjXrq0xCduEHDrjhM643cgaHsxKJRMosYqo44EoXCka3JfRXdGGSpb+vaFQX7wK5ZtFY5RvDNVphcnF25Op1sTS495t/ynsm9fXz684fUj6SPt+50uZAK+1BVAFZt90sf/ZU/8of+3Q984J93bXJOFf1JdEFMNluW+A1kHswQy0RL9gXlQUn5pG7C+9NZpjY8ihYUIAEw9HUd9UxOfBg5HtD2XExNTWFMrpguVF4p/bHDLMaq75ax8iWXE9pyQjBAkH0Vy9HdFoWjq2Psk/B53NV6F/uh1Ha9I1SgYTdfsMLDuNAGXUIOxsZBaAmuDF6d]],
+    [[q6sp+Xrgm5nUjZrlZJBQ1bvsG0EUjtPZdrNdVZPGV6vxlC4/7p97l0fA117Bq6/sV252f/+4rNxykS3RdHvrpECDYf5DH/rlb37/t3zi1z5JjNK3Z6B6fLq5xoDQVROgHkXRIrnLQ9XfBgOiek5xDdPNoFwF7bNzXNVvuvOekhqfwkmIs9mxlGImbLXmuZBXKQBDK8ATBmBZMcvMrVqnue+ywrycFLGup4/iZGNPIgwFLebBHrau7QI5hXcIzMHIEcQoA1nJA3UvgUxBwflIjvqUfRhd2LvQixP18JEiVzMke7A9q555+7Xnflc928JXX8aLL7/GPItxfLR/zI76tKyb0WQ2m474ZBclAGhXq6oK1x+7WkoO8dJpStKfwUeeiep03VJUpYhZySWdHNGuVifHtG170reahQNDdTodm8nJmjro3zVV6hm4jqkNuF/TomjVAEtqqpZgA2+0Jxr4ETqjHtrBZWIxGcgWN4jVQQ0aAJXBzBsY]],
+    [[a9cEeQJks4G50gPsqumwHQnYjJ3RALJWcl6pcn6qGPcSptuXfBwt+8yxdlVdTbbqsZvuYefSzrvec/Ft78Tdu/jnH/5KFadPPfnYvburw4PDKoac88UL4+3R1qxG4PWSODR++9vf+hu/8S8Wy0XOZTweMKQKIMZ4Mhh1VZ0OBpFjxFFFVMeKHwKXDZp3c25iQ3A+56ylfOpTn3zk9H9jMzvhwj7JUZ8QCvoBnEhDnbt24G6Npl77j2fv5+S3G2kYlhAtg7E9VOxDNxQTJmpCBGOv7IEIi7HZYb9l1KQUd/eebntbdVkdT2dVNWmmu9PZTvXN317vXUXb4xd/8dZqtbpy5bGuo6+9fA8qV/a29+/Or1y/dGmG1SFeer594Ssvkh9/KwAmevqZp+7euXs8P5QiITDxhgHMdCgSe2PXnHw+4LxPCwFPJ/K6C4wAtSFvtX7+zSZMwNlKkpONxzcwWBuQ2B5a7excOTi4F+oqp0OoxeZSaqmu]],
+    [[ZkV6sUOjJXSA2AQAsDM7buhAxHkqx44jjI0CkSOuABZzMM9+AKEEhgc4WzBXY7zLfqrW1NNrmwEIyju+Hofazfaa6YXRhavbjz/VXL6C4wWOD1Muy8m0Ho+bB/cWKo333La3ZqPmicd2XManPj5/cPNo//Yid+JNnXP03HPPfeX5L/VpKZJD8OzIzs64h2fTulc3XYl1jgWb9w99C2xm8ebzb6zuZTMkw4+G/Z3rNackSAV1NYFFIl07c4OJOVDAmJwztIw3JDS0RvvQQIW+RnwSPMibOiLPiMye2RNPekyZ92K9ZTwWG5s2ZrUIJnuz3UuXL1zdjmM8/paACscLfeGTt6vgHrt+cbK9szjeX61WwTeHh4fb09m7n71mgi98+vDFL750dHdVVlZaya14x+G5dz73lee/kFOSIkPvAzhRTQTACm124DgRBQIAwXrrqnyiImi9IeXJ4YYhZwsjok2EQx9thr5pY4BjGHk/IxQggE2LH2/v]],
+    [[zhedgZUVVs7wW/B5HpKhOmO4J7fZh4HBATZE/NbaHwimHi4SQnCjEHacf0LDbvCNi5PjVZlu7e3uXQ2jany5aXZGk53gK9xf6usvvO4DP/nk9d0tmIJcv7M3qqvgnfu2bx2VFr/xq/jcZ17P7cpj3C/3pW1z6pnVP/2Wp7/y/JdyzinlWEV2G9aEc7UPJ+uEnvFGh+i/vOHghzrujSi231HXn/7Ehyr6oKrD5FDjqp7N5wRTWAN0IIFtJGbNCzQgeU/QvGwWYF7MA94sAp6w0XLwoACLSZsQxi5MKO42s+srbTI5DqNn3v7YbGdv58K2G2FyBQ9W3Suvv3pwfDTd3rp8ZW8yqZftQpVisO1ZPR77x6/j+BC/+ssPXvz83dX+zMlosT/P7WEAVzFQZWzF3779Wp9a1eK8cy6eWes2DosZBlgDNk8xTF6FQgYg8LrAhzwAU2U6TYGZ0Gg8Xi3nLniT4twA61wX1D1iwB4qGl0bKmyQ6Kzv]],
+    [[jrZms37OBufq5qhN4+mV5eIAaQEsUTlQARzUnA2kWGzEam69AJgHTxxXztXkfN8bXGXsiSO7kfQGqri5EMJ2bHaqZkudzzVtzbb2Ll6ux7O9i3tVhaJY9vjM527Pu6PxZPKWJ97ZTPne/VsP7i9mW6PJePfxG83li7j5Nfzczx7feeXe/t3j2ehyP5eyOtKcaxcv7s62xuHi9mi+OPSDmehddM5tStV4MwDnRuK0GQY64fMfnggBnVJSAc771dEcbwwAvGl7ozAN+kqcB0Ekp+iaXqGICr9sSz2+FMdh2U0s78MymEBOaNgcwxnxGuNGDvCQWlAJKlDEOAIOwmYsGGE2nWxfms6upOLFQhjtTHe3Lz62Pd2Zjke8XGK+TC+9ev/w8LiT/i3PPfPY1mXVvL9/6/XXji5c3nn3N731rc/iwQN8+UvykQ++Wlpb7C81M0qTVErb70xnj129duVibCJefvErv/Gpj9+9fcsTuQEACaBIOe3t]],
+    [[TfU+EUxtzdpFmzC1Dft+6JnywhOjfuAE2NjgppeuXd8/eBACJ5VHDOfXa3r6hiVEEKTv+6pptDijRjSEZrzqe+Jqtv1Mzquck+qw2Jiu1b6HcxiAzebBI7iKfTDv4WuwgwugsLtzraqnoWrA7srFS9u7F8bTygy5YHlsX33h1tHRkZE6T7sXt3b2pot2/6X7X6QgO7tb3/Ut77x+A4cH+Jn/ef7lL77syUONimrKVHRntnV5d+tt3zKrGHdu62/91qdvvvJ86Y9yd+ypeOZ17wMYGCc2y+OavPRs58IYVk5JIAeCuUHVnkUsn7FZY/SHR0cb4CKvf/g7W4EBgFjYFWbJ2o7DqFcnYDNL0iMEEXd0kLYvPDaZ1E0zLqIH84XBK6GAxBxAg7UTZlP2wTtvni9cuRKbZjyd1c2sjruTaQwRJWPV4/h48crte30nDx4ceeLpbLy3t7e7t6WWDg/3X3jhK48/eenbvuWbL1+BCF5+ZfEvfu3m]],
+    [[vftzWCxt36dud3vr8aevv/XG+NolmOL2K/jkr3353q1X50f3oi+jSqmsxOZ9tzwp/wBOgrQDxfG6Ex1Iz0YQzbyZqGaQOsdmYhAzcewetjoArHW9seMij8aUA+coH+iREkJqyD6gaEsI88U+woxdqSfx+M5BtXvd+aieDg8RPHUdNaOdi5fe7uIkVI2v6q6Yi6NQN6Hi3UuTauKms6YeoxMIIARTLBb42p18dDg/PjhQs9z1qhq9n0wmTzxxY2saVt3q+PA+qNx47Mp3ftdj0xleu4lP/urRg/v3l6u5akEoMdo3vev6u9999YnHYAlf+Tw+8bE7L37pK3nVldRJv3B0nPv5fLG0ssrpSHPvN/h9ADjbicqn6Ogz6POhvJmIyCBQIWID2YmFd9qLGxds0FH/UrP+fNMNVYOJJjNiVKk09ZWd7s5t3ro+nlzMR102spR7TSNIHPHIVclCHE19rGNsOPpFK0ep3No/VEgrq76kXnKfrV0S]],
+    [[UfDkBGU6GV24OJ1OqsmoyV2b04NlV12+vHPj8ZH3uHsXv/mZuw/u3wU4+Mm0mTz9+FOXL/PuHtiBDJ/97NEHfvKLq+NVBOe2S8uVpk5ya2UuecW2gqykzCUfSU5+wPquO9qfhhPYTjvxTB5K2UxFgUIqxmIQWlMenJmv0I1jrDpUi/8vrf0fApkDA4aIFVhWcMmom3r65JX5fj9fHlx/4um6Hi2W8zu37vX3E/w+qppdFccTH0e+blxs+myurqpR5JqTFYEVMjGqR8321vZsEqaT6NC1qweRF1vTyY0bl7dnyAU3b9qnP/X64eExjLe2x089efnJp/b29iAFfYcXX7BP/4uvHR0tu5X2bdd3LTRzaVH6klZWVihLYEXSETqzFekCujJr/alqXqfuhlmsCjt5v6mKA+BAIC9mrFRgRErmCCqn3bSuyQIgasZsakq8rv/emDT/ktKgpEwEKkgCOgT5bnk3B9q5cE1tfPPOzVhPrt947Pe+]],
+    [[+1tKqe/dP759/4ESd9LBg7yQlxirqvHVSEONMBr5yodxrKowyHnfLS5cqC5fmly5OPEOB/dx5+bilRfnxP7Sxb23PfPYlSuoK8wXuHsPX/rcix+5ebPv88H9I8ejIr702q9UuhYoVSVmraaF5BXKyqFjSg6JkQhLoY4ogRI123/shEPfbQipz8RzFMDpKk3KzMvVAlCRFIIbSO+goqpFUnDsGAQVyaq5SGZXDHkNYLQyELKcJcSgTTJAz8ZBzQA4ImbOqQ/V6MqVGzmVBw8emJnAABg8UCNe8HEv1ldcfWln95mMmaCOo63xdOvy9WtXH7vAAcKwMEDPgXWeQ83ERXYxxOhd8Ht7tLeHGLBYoFuiZKQOktAA7TEOD7FY4M7N+6+9dnO5WC0Wx1XtlvODEFzXLp3bAKJUOGVJq1xaaOe8qPSlLCG91541i2RCJi5kqUiGFA8Oa7AmDbXFuvEeQSdae3MBQFfdanv3QsodoF23YvNmBhbP]],
+    [[PGLkvGKCWXHr8ToluntDO6U/2BQbndFTJ9wPRQBfxB577PGP/+rHQqxKzuSHfR4USJSOTDkbAH7lxX564Znp7o3peBSauH98//4X7rvIXLmdi9uXr+5u7+Cxx6o6VlWFEFAKUkLboss4vIejO9g/7O7e2W9XMj9uHzw4bg/bmM1SzjlLLkS0Wi5DCKvFoq5j282jp9SvvF+HF1mzLx2X3mkxZO2SmhAyQ530MIEktWzIZqIlqRZqLvxJIuIzXbzOjvrTBflMLYaaqZn87n/j2z//+c/uHzwgFTODlXbVzqbj8bh+7h3P/trHflm0iHS59GrdMOsVQlqGQihTsw2MjnS9gKg+LAGwMngZT7/lma7rbt267RwTURn87qH43byhYr/j457wBfgLxhPhsfomjLfH060wGvm6YVeHWLH3k1ENwIqIoOtagGmgnHSmon1OA6KpFM2lcCqx63kgLkeGymo1D8Gl3I2quOrmMfqUVyZ5kCqnmfqO]],
+    [[JA8liwB4IIIlc1xM+kExVLUTS1JSEfHGDkR6dj6uqVzd2h4FcLoxkaubAOiz73zX7bt3UymL+RxQUre10zimZjT9pve+/9c/8QkAZtE7S1kx8ECZwNw6ZGZ2zvZ8owQMnM9hVIo88fSTXdvdvHkTkKLm/GlCgqGEBBUtXAC4XPp5rLfr0V5xM8223J/rgyjLjNE0jLaqenKPnPdV5ACwDBymbMS07OZmYk68p7ZdqgmgXnPUoqlNuSs5pdxZ6koTJXfauZJXqGPKK3Y0YANExBl4KHs2hMDO+xh9cOQomwaRJFpWq6OivZQkqr4eTR4CpKzr9E7ekzrnzbSqqtF4PJvNQuDZ1sUbT7yFfUzd6ubNm8HxeDyqY9ieTba2Llx97Ebuu7v3blri2jWialJUs2oRLdBsWghrLjIzU8Mb8w0ALl++cuPGja++/NKt27d98GZuQCit60rXIU4lb4zOBGIJVver/X55248fc3G7ilNzdb13QRRF]],
+    [[FvloKTBm33PNHB1HmFd1ambIhmxUEjK0hyVQMen7MidJpkRqniDRS1IYwzF6VQLEKDoz2t7aVUHFk6auU27ZqeOc8iKXPuU+LY5IkkiydeR4zWnmjcL5ARhyRgNh3/o9uaCiYq6o/Ru/5zvN5Jm3vV2g1248drh//2i+LKl7z3vff/XyXhX8408+/W9/9x/o+/Yf//T/1HUriDG74IjYJpMRM4JnIpGyPCEv5zfi1wEAt2/e/NjHf8UFv2F9PNd0IBeAEjmmrADDFMVRr0hlqZqOLY58mD04uBma2Xh6YTIeGzsXyDshaLdaESrmaGAQzFiZQW65KoYCFObi2KgM5UEuumHzyyo4ihVX1TVii9GDynxxQGTz+bJ0/arNi8WBj+Y4F1mpJdYcwkB7rwNHKamAlVQ8+4cH4JRdZ40eAHkPK2KUiv7kT/9MXdfXHnv8537+I0cHD+7eu+08t8vFz//Ch6J32zsTDvyjP/YTubRdtypp5VC0]],
+    [[ZJGUc1/VIeekkiD9acZNjd5kAJxjXzFRKaUH6ofidANxspIqWMkDRBC2HshsBaZaVil7qSaea033jw9fOz4KcMGF2vOIUHmeeDcKceJcHE3GGIj3YONmZFYBSiamI9E0VHioiorkcpRS9i7euvtga2v62sH9ECnl1WjclD7N5/MQQreajzQqZFhvQWIwpYFTceD8S4QMZE8c6KFQ5dlowADY89HEBCjCdV2L4cHBUdf1bdszexjGk1m3WixWSzPZPzpIJS+WS2Lr04qkJxRm80FzWYE1eMA8mw7MhKb6ZgMAIJcUY8DDGOG1BCicrZ2VDSAD4IFlEWAryix5BXi4iDWVpFOqsm+AClKxn1TNpIrNYo4Txdv1K1MDqZmJFtMeJrACHVgamUiOUssqaenVZHXcSknS1bn0pe1cXXHJXKr14kcKaDExyaK9WRly0UWyaabdZ//aI0GJxEZEA1MNP6yj1uByLUlKLpJEsmk2yyCFZtVStBPJ]],
+    [[JK2T3jQNC8DGBVOo8eAqGw8iqY8aAFqjwXDaxWAA7E5qBdYkwafRKuM1qdrAXQI2I6XhLAxiUCSu2FWEChadq0McOeeIRSQXKVJEhr27VWEDKebpori5s+K430AxBztFgWG/HFsjxk7y5LShozQBoKQqahAVMTPPHB81AMprAowhPXn22sBJeOeEx4WoiK6LRWEn0VClRyYC2EjUmDa13Wu/6hHt60cwGNjQ+OmAAcVZx36TTzYe7okGxJUyzMFAQpQJPXKrQoY+l1bKupQBplCF2rkHOC0HLMr5fGJ1MCjghq1wSWmw2HHieMpJOlY3mVqYeefio0i+ldgeHnYAgDsf2BmoU+3NeD1tgFSyEetGjRAbqRvwPl+fIPLhnM/5tpk3D5UOnvvNsAuvbm51c8PKVob0PKzk0qkWxVI0QfW0l9eEC+euOdwX1ij5zdwnwnq7YGRb75xCeoIUGSKYJxyBw7nX5/UM9ygJIODrOrE2JFhZz824]],
+    [[YWRNVexsCmFQCCc7D8HOpNv+f9jMNnjq0x101LExGaOoqfdVkV5KEe1N5kDBwFtzZiufN5x0Ayo4wXhshMCIhzEYvmFbb54NwDa1uudgIgAAX2QIcJ2OwYaFEjRwrxOd0FaaqUlZ02FuhnX46xybkRhU5STU4733zKReNPtN5qBIgslAXQAblt9TCdJzEv/ImXEyfc78HT45l7c4N3U9c4zRu5BSBoYwoqW8FC0wI+0NCdhsNWWnVz+b2jsDajppgzSsdajaya9oSCOuIdxD1zPeOO08U3Wq64dHZAIKsRELDbtdnj4L25mZxURKxERGw2YyqiYDQzdoTb5DazFmYFOlbfz/BwnY5DAYgN/s85BLApmpGhQqpkUlmQlDB8VKZzQYncFTYDMAa6qi04CuKoFOdABt4mgDLOPUnz1Btr1hANYkiecGgAEi1jeSAA20TTnnzX+ZmW2NOXAKBXlIwaChSMkUw27h6043wJgchr0vmM7QgPwr]],
+    [[aydzkIjdek9JGiq113uCQEFqkgyJTIAMYzK/Bqlv2gbQciIBUNvYF7ZJTqxpFk/QfGcW6nPSrKc6+XxiyjOv93Q9vfBA/vDmhZL00JZvREwOZDzMa/KKNQ6Q1yTkwzJga162h8ja/lW3Ya5VMQLrnbwGJ0rVRNYWIUENa4ZC+kaoeU/bBnU6UHsb6CSstf47SMDDSNl1e0Na8P8L9LpJqOJNaMIAAAAASUVORK5CYII=]],
+}
+local KL_ICON_B64 = table.concat(_IC)
+
+-- Write KL icon PNG to workspace on first run
+local function EnsureIcon()
+    if not (isfile and writefile) then return end
+    if isfile(ICON_FILE) then return end
+    pcall(function()
+        local lk = {}
+        for i = 0, 25 do lk[string.char(65+i)] = i end
+        for i = 0, 25 do lk[string.char(97+i)] = i+26 end
+        for i = 0, 9  do lk[string.char(48+i)] = i+52 end
+        lk["+"] = 62 lk["/"] = 63
+        local res = {}
+        local data = KL_ICON_B64:gsub("[^A-Za-z0-9+/=]","")
+        for i = 1, #data, 4 do
+            local c1 = lk[data:sub(i,i)] or 0
+            local c2 = lk[data:sub(i+1,i+1)] or 0
+            local c3 = lk[data:sub(i+2,i+2)]
+            local c4 = lk[data:sub(i+3,i+3)]
+            local n  = c1*262144 + c2*4096
+            res[#res+1] = string.char(math.floor(n/65536)%256)
+            if c3 then n=n+c3*64  res[#res+1]=string.char(math.floor(n/256)%256) end
+            if c4 then n=n+c4     res[#res+1]=string.char(n%256) end
+        end
+        writefile(ICON_FILE, table.concat(res))
+    end)
+end
+pcall(EnsureIcon)
+
+-- HWID
+local function GetHWID()
+    if isfile and isfile(HWID_FILE) then
+        local v = readfile(HWID_FILE)
+        if v and #v > 10 then return v end
+    end
+    local c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local s = ""
+    for i = 1,32 do local r=math.random(1,#c) s=s..c:sub(r,r) end
+    local h = s:sub(1,8).."-"..s:sub(9,12).."-"..s:sub(13,16).."-"..s:sub(17,20).."-"..s:sub(21,32)
+    if writefile then pcall(function() writefile(HWID_FILE, h) end) end
+    return h
+end
+local HWID = GetHWID()
+
+-- Game info
+local gameName = "Unknown Game"
+local placeId  = tostring(game.PlaceId)
+pcall(function() gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name end)
+local username     = LocalPlayer.Name
+local sessionStart = os.time()
+local stats        = {decomps=0, mapLoads=0, errors=0}
+
+-- README builder
+local function BuildReadMe()
+    local NL = "\n"
+    return "-- Decompiled with Zyler Hub v"..VERSION.." | "..DISCORD..NL
+        .."-- Game: "..gameName.." | PlaceId: "..placeId..NL
+        .."-- Date: "..os.date("%Y-%m-%d %H:%M:%S")..NL
 end
 
+-- Branding replacement (no \n in pattern strings — use string.char(10))
+local function ReplaceBranding(folderPath)
+    local NL = string.char(10)
+    local bad = {
+        "UniversalSynSaveInstance",
+        "discord.gg/wx4ThpAsmw",
+        "Saved by UniversalSynSaveInstance",
+        "discord.gg/svHEHMPJBB",
+        "Join to Copy Games",
+    }
+    local good = "-- Decompiled with Zyler Hub v"..VERSION.." | "..DISCORD
+
+    local function hasBad(s)
+        for _,p in ipairs(bad) do if s:find(p,1,true) then return true end end
+        return false
+    end
+
+    local function procFile(path)
+        local ok, content = pcall(readfile, path)
+        if not ok or not content or not hasBad(content) then return end
+        local out, replaced = {}, false
+        -- Split on NL character safely
+        local function eachLine(str)
+            local lines = {}
+            local pos = 1
+            while pos <= #str do
+                local nl = str:find(NL, pos, true)
+                if nl then
+                    lines[#lines+1] = str:sub(pos, nl-1)
+                    pos = nl + 1
+                else
+                    lines[#lines+1] = str:sub(pos)
+                    break
+                end
+            end
+            return lines
+        end
+        for _, line in ipairs(eachLine(content)) do
+            if hasBad(line) then
+                if not replaced then out[#out+1] = good replaced = true end
+            else
+                out[#out+1] = line
+            end
+        end
+        pcall(writefile, path, table.concat(out, NL))
+    end
+
+    local function scan(path)
+        local ok1, files = pcall(listfiles, path)
+        if ok1 and files then
+            for _, f in ipairs(files) do
+                if f:match("%.lua$") or f:match("%.luau$") or f:match("%.txt$") then
+                    pcall(procFile, f)
+                end
+            end
+        end
+        local ok2, dirs = pcall(listfolders, path)
+        if ok2 and dirs then for _, d in ipairs(dirs) do scan(d) end end
+    end
+    pcall(scan, folderPath)
+end
+
+-- Anti-AFK
+local afkConn, afkOn = nil, false
+local function ToggleAFK()
+    afkOn = not afkOn
+    if afkOn then
+        afkConn = RunService.Heartbeat:Connect(function()
+            pcall(function() LocalPlayer:Move(Vector3.zero, false) end)
+        end)
+    else
+        if afkConn then afkConn:Disconnect() end
+    end
+    return afkOn
+end
+
+-- FPS
+local fpsOn = false
+local function ToggleFPS()
+    fpsOn = not fpsOn
+    pcall(function() if fpsOn then setfpscap(0) else setfpscap(60) end end)
+    return fpsOn
+end
+
+-- Open Discord
+local function OpenDiscord()
+    local url = "https://"..DISCORD
+    local ok = false
+    pcall(function() if syn and syn.open_url then syn.open_url(url) ok=true end end)
+    pcall(function() if not ok and openurl then openurl(url) ok=true end end)
+    pcall(function() setclipboard(url) end)
+end
+
+-- Map Loader
+local function LoadFullMap(onStep)
+    onStep("Disabling StreamingEnabled...", 0)
+    pcall(function() workspace.StreamingEnabled = false end)
+    task.wait(0.3)
+    local pts = {
+        Vector3.new(0,0,0),      Vector3.new(500,0,500),   Vector3.new(-500,0,500),
+        Vector3.new(500,0,-500), Vector3.new(-500,0,-500),  Vector3.new(1000,0,0),
+        Vector3.new(-1000,0,0),  Vector3.new(0,0,1000),    Vector3.new(0,0,-1000),
+        Vector3.new(2000,0,2000),Vector3.new(-2000,0,-2000),
+        Vector3.new(3000,0,0),   Vector3.new(0,0,3000),
+    }
+    for i, pt in ipairs(pts) do
+        pcall(function() LocalPlayer:RequestStreamAroundAsync(pt, 2) end)
+        onStep("Requesting chunks "..i.."/"..#pts, i/(#pts+1))
+        task.wait(0.2)
+    end
+    onStep("Camera sweep...", 0.9)
+    local cam = workspace.CurrentCamera
+    local oldCF, oldType = cam.CFrame, cam.CameraType
+    cam.CameraType = Enum.CameraType.Scriptable
+    for _, pt in ipairs(pts) do
+        cam.CFrame = CFrame.new(pt + Vector3.new(0,400,0), pt)
+        task.wait(0.07)
+    end
+    cam.CameraType = oldType
+    cam.CFrame = oldCF
+    stats.mapLoads = stats.mapLoads + 1
+    onStep("Map fully loaded!", 1)
+end
+
+-- Decompiler
+local function RunDecompiler(onStep)
+    local snap = {}
+    for _, v in ipairs(CoreGui:GetChildren()) do snap[v] = true end
+    for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do snap[v] = true end
+    local watcher = RunService.Heartbeat:Connect(function()
+        for _, v in ipairs(CoreGui:GetChildren()) do
+            if not snap[v] and v.Name ~= GUI_NAME then pcall(v.Destroy, v) end
+        end
+        for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+            if not snap[v] then pcall(v.Destroy, v) end
+        end
+    end)
+
+    onStep("Fetching save engine...", 0.05)
+    local safeName = gameName:gsub("[^%w%-_]","_"):sub(1,40)
+
+    local ok, err = pcall(function()
+        local ssi = loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/verysigmapro/UniversalSynSaveInstance-With-Save-Terrain/refs/heads/main/saveinstance.luau",
+            true))()
+        onStep("Saving "..gameName.." ...", 0.12)
+        ssi({
+            mode="full", ShowStatus=false, ReadMe=false,
+            Decompile=true, DecompileTimeout=15,
+            scriptcache=true, SaveBytecode=false,
+            NilInstances=false, IgnoreDefaultProperties=true,
+            IgnoreNotArchivable=true, IgnoreDefaultPlayerScripts=true,
+            RemovePlayerCharacters=true, IsolatePlayers=false,
+            IsolateLocalPlayer=false, IsolateLocalPlayerCharacter=false,
+            AntiIdle=false, FilePath=safeName,
+        })
+    end)
+
+    watcher:Disconnect()
+
+    if not ok then
+        stats.errors = stats.errors + 1
+        onStep("Error: "..tostring(err):sub(1,80), -1)
+        return false
+    end
+
+    pcall(function() writefile(safeName.."/ZylerHub_README.lua", BuildReadMe()) end)
+    onStep("Replacing branding...", 0.95)
+    pcall(function() ReplaceBranding(safeName) end)
+    stats.decomps = stats.decomps + 1
+    onStep("Done! Saved to workspace/"..safeName, 1)
+    return true, safeName
+end
+
+-- KeyAuth
 local function InitSession()
-    local url = "https://keyauth.win/api/1.2/?type=init"
-        .. "&ver=" .. VERSION
-        .. "&name=" .. HttpService:UrlEncode(APP_NAME)
-        .. "&ownerid=" .. OWNER_ID
+    local url = ("https://keyauth.win/api/1.2/?type=init&ver=%s&name=%s&ownerid=%s")
+        :format(VERSION, HttpService:UrlEncode(APP_NAME), OWNER_ID)
     local ok, res = pcall(function() return game:HttpGet(url) end)
     if not ok then return nil end
-    local dok, data = pcall(HttpService.JSONDecode, HttpService, res)
-    if not dok then return nil end
-    return data.success and data.sessionid or nil
+    local dok, d = pcall(HttpService.JSONDecode, HttpService, res)
+    return dok and d.success and d.sessionid or nil
 end
 
 local function ValidateKey(key)
-    local sessionid = InitSession()
-    if not sessionid then return false, "Failed to connect" end
-    local url = "https://keyauth.win/api/1.2/?type=license"
-        .. "&key=" .. HttpService:UrlEncode(key)
-        .. "&sessionid=" .. sessionid
-        .. "&name=" .. HttpService:UrlEncode(APP_NAME)
-        .. "&ownerid=" .. OWNER_ID
-        .. "&hwid=" .. HttpService:UrlEncode(HWID)
+    local sid = InitSession()
+    if not sid then return false, "Connection failed" end
+    local url = ("https://keyauth.win/api/1.2/?type=license&key=%s&sessionid=%s&name=%s&ownerid=%s&hwid=%s")
+        :format(HttpService:UrlEncode(key), sid, HttpService:UrlEncode(APP_NAME), OWNER_ID, HttpService:UrlEncode(HWID))
     local ok, res = pcall(function() return game:HttpGet(url) end)
     if not ok then return false, "Connection error" end
-    local dok, data = pcall(HttpService.JSONDecode, HttpService, res)
+    local dok, d = pcall(HttpService.JSONDecode, HttpService, res)
     if not dok then return false, "Parse error" end
-    return data.success == true, tostring(data.message)
+    return d.success == true, tostring(d.message)
 end
 
--- ================================================
--- MAP LOADER
--- ================================================
-local function LoadFullMap(statusCb)
-    statusCb("Disabling streaming...")
-    pcall(function() workspace.StreamingEnabled = false end)
-    task.wait(0.5)
+-- ══════════════════════════════════════
+-- COLOURS
+-- ══════════════════════════════════════
+local C = {
+    BG0=Color3.fromRGB(6,8,16),    BG1=Color3.fromRGB(11,15,26),
+    BG2=Color3.fromRGB(17,22,38),  BG3=Color3.fromRGB(24,31,52),
+    BG4=Color3.fromRGB(34,44,72),
+    BLU=Color3.fromRGB(50,112,255), BLU2=Color3.fromRGB(85,148,255),
+    BLU3=Color3.fromRGB(26,56,138),
+    CYN=Color3.fromRGB(40,200,255),
+    GRN=Color3.fromRGB(48,218,115), GRN2=Color3.fromRGB(20,95,50),
+    RED=Color3.fromRGB(255,70,70),  YEL=Color3.fromRGB(255,200,55),
+    PUR=Color3.fromRGB(160,85,255),
+    WHT=Color3.fromRGB(238,244,255),DIM=Color3.fromRGB(105,120,175),
+    MUT=Color3.fromRGB(52,62,105),  DISC=Color3.fromRGB(88,101,242),
+}
 
-    statusCb("Requesting chunks around origin...")
-    local points = {
-        Vector3.new(0,0,0), Vector3.new(500,0,500), Vector3.new(-500,0,500),
-        Vector3.new(500,0,-500), Vector3.new(-500,0,-500), Vector3.new(1000,0,0),
-        Vector3.new(-1000,0,0), Vector3.new(0,0,1000), Vector3.new(0,0,-1000),
-        Vector3.new(2000,0,2000), Vector3.new(-2000,0,-2000)
-    }
-    for i, pt in ipairs(points) do
-        pcall(function() LocalPlayer:RequestStreamAroundAsync(pt, 2) end)
-        statusCb("Loading chunks... (" .. i .. "/" .. #points .. ")")
-        task.wait(0.3)
-    end
+-- ══════════════════════════════════════
+-- UI HELPERS
+-- ══════════════════════════════════════
+local TS = TweenService
+local function TW(o,t,p) TS:Create(o,TweenInfo.new(t,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),p):Play() end
+local function S(x,y)    return UDim2.new(0,x,0,y) end
+local function P(a,b,c,d) return UDim2.new(a,b,c,d) end
 
-    statusCb("Moving camera to scan world...")
-    local cam = workspace.CurrentCamera
-    local oldCFrame = cam.CFrame
-    local oldType = cam.CameraType
-    cam.CameraType = Enum.CameraType.Scriptable
-    for _, pt in ipairs(points) do
-        cam.CFrame = CFrame.new(pt + Vector3.new(0, 200, 0), pt)
-        task.wait(0.15)
-    end
-    cam.CameraType = oldType
-    cam.CFrame = oldCFrame
-
-    statusCb("✅ Map fully loaded!")
+local function N(cls, props, parent)
+    local o = Instance.new(cls)
+    for k,v in pairs(props) do pcall(function() o[k] = v end) end
+    if parent then o.Parent = parent end
+    return o
+end
+local function Rnd(p,r) N("UICorner",{CornerRadius=UDim.new(0,r or 8)},p) end
+local function Bdr(p,col,th) return N("UIStroke",{Color=col or C.BG4,Thickness=th or 1},p) end
+local function Pad(p,l,r,t,b)
+    N("UIPadding",{PaddingLeft=UDim.new(0,l),PaddingRight=UDim.new(0,r),
+        PaddingTop=UDim.new(0,t),PaddingBottom=UDim.new(0,b)},p)
 end
 
--- ================================================
--- ANTI-AFK
--- ================================================
-local afkConnection = nil
-local afkEnabled = false
-local function ToggleAntiAFK()
-    afkEnabled = not afkEnabled
-    if afkEnabled then
-        afkConnection = RunService.Heartbeat:Connect(function()
-            pcall(function()
-                LocalPlayer:Move(Vector3.new(0, 0, 0), false)
-            end)
-        end)
-        local vrs = LocalPlayer:FindFirstChild("PlayerScripts")
-        if vrs then
-            for _, v in ipairs(vrs:GetDescendants()) do
-                if v.Name == "AFK" then v:Destroy() end
-            end
-        end
-    else
-        if afkConnection then afkConnection:Disconnect() end
-    end
-    return afkEnabled
+local function Frame(parent, bg, size, pos, z, radius, border)
+    local f = N("Frame",{BackgroundColor3=bg or C.BG2,BorderSizePixel=0,
+        Size=size or S(100,40),Position=pos or S(0,0),ZIndex=z or 1}, parent)
+    if radius then Rnd(f, radius) end
+    if border  then Bdr(f, border) end
+    return f
 end
 
--- ================================================
--- FPS UNLOCKER
--- ================================================
-local fpsUnlocked = false
-local function ToggleFPS()
-    fpsUnlocked = not fpsUnlocked
-    if fpsUnlocked then
-        setfpscap(0)
-    else
-        setfpscap(60)
-    end
-    return fpsUnlocked
+local function Label(parent, text, tsize, col, size, pos, font, align, z)
+    return N("TextLabel",{Parent=parent,BackgroundTransparency=1,
+        Text=text or "", TextSize=tsize or 13, TextColor3=col or C.WHT,
+        Size=size or P(1,0,0,20), Position=pos or S(0,0),
+        Font=font or Enum.Font.Gotham,
+        TextXAlignment=align or Enum.TextXAlignment.Left,
+        TextWrapped=true, ZIndex=z or 1})
 end
 
--- ================================================
--- DISCORD LINK
--- ================================================
-local function OpenDiscord()
-    local url = "https://" .. DISCORD
-    pcall(function()
-        if syn and syn.open_url then syn.open_url(url) return end
-    end)
-    pcall(function()
-        if openurl then openurl(url) return end
-    end)
-    setclipboard(url)
-end
-
--- ================================================
--- GUI BUILDER HELPERS
--- ================================================
-local function MakeCorner(parent, radius)
-    local c = Instance.new("UICorner", parent)
-    c.CornerRadius = UDim.new(0, radius or 8)
-    return c
-end
-
-local function MakeStroke(parent, color, thickness)
-    local s = Instance.new("UIStroke", parent)
-    s.Color = color or Color3.fromRGB(80,80,255)
-    s.Thickness = thickness or 1.5
-    return s
-end
-
-local function MakeLabel(parent, props)
-    local l = Instance.new("TextLabel")
-    l.BackgroundTransparency = 1
-    l.Font = props.Font or Enum.Font.Gotham
-    l.TextColor3 = props.Color or Color3.fromRGB(255,255,255)
-    l.TextSize = props.Size or 14
-    l.Text = props.Text or ""
-    l.Size = props.FrameSize or UDim2.new(1,0,0,24)
-    l.Position = props.Pos or UDim2.new(0,0,0,0)
-    l.TextXAlignment = props.Align or Enum.TextXAlignment.Center
-    l.Parent = parent
-    return l
-end
-
-local function MakeButton(parent, props)
-    local b = Instance.new("TextButton")
-    b.BackgroundColor3 = props.BG or Color3.fromRGB(70,70,230)
-    b.BorderSizePixel = 0
-    b.TextColor3 = props.Color or Color3.fromRGB(255,255,255)
-    b.Font = props.Font or Enum.Font.GothamBold
-    b.TextSize = props.Size or 14
-    b.Text = props.Text or "Button"
-    b.Size = props.FrameSize or UDim2.new(0,200,0,42)
-    b.Position = props.Pos or UDim2.new(0.5,-100,0,0)
-    b.Parent = parent
-    MakeCorner(b, 8)
-
-    local normalBG = props.BG or Color3.fromRGB(70,70,230)
-    local hoverBG = props.HoverBG or Color3.fromRGB(100,100,255)
-    b.MouseEnter:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = hoverBG}):Play()
-    end)
-    b.MouseLeave:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = normalBG}):Play()
-    end)
+local function Button(parent, text, bg, hover, size, pos, tsize, z, radius)
+    local bgN = bg or C.BLU
+    local bgH = hover or C.BLU2
+    local b = N("TextButton",{Parent=parent,BackgroundColor3=bgN,BorderSizePixel=0,
+        TextColor3=C.WHT,Font=Enum.Font.GothamBold,TextSize=tsize or 13,
+        Text=text or "",Size=size or S(200,36),Position=pos or S(0,0),
+        AutoButtonColor=false,ZIndex=z or 1})
+    Rnd(b, radius or 8)
+    b.MouseEnter:Connect(function() TW(b,0.12,{BackgroundColor3=bgH}) end)
+    b.MouseLeave:Connect(function() TW(b,0.12,{BackgroundColor3=bgN}) end)
     return b
 end
 
--- ================================================
--- RAINBOW STROKE ANIMATION
--- ================================================
-local function AnimateStroke(stroke)
+local function Rainbow(obj, prop, spd, sat, val, hOff)
     task.spawn(function()
-        local hue = 0
-        while stroke and stroke.Parent do
-            hue = (hue + 0.4) % 360
-            stroke.Color = Color3.fromHSV(hue/360, 0.85, 1)
-            task.wait(0.04)
+        local h = hOff or math.random(0,360)
+        while obj and obj.Parent do
+            h = (h + (spd or 0.5)) % 360
+            obj[prop] = Color3.fromHSV(h/360, sat or 0.8, val or 1)
+            task.wait(0.035)
         end
     end)
 end
 
--- ================================================
--- SCREEN GUI
--- ================================================
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ResetOnSpawn = false
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
--- ================================================
--- KEY VERIFICATION UI
--- ================================================
-local KeyFrame = Instance.new("Frame")
-KeyFrame.Size = UDim2.new(0, 460, 0, 280)
-KeyFrame.Position = UDim2.new(0.5, -230, 0.5, -140)
-KeyFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 17)
-KeyFrame.BorderSizePixel = 0
-KeyFrame.Parent = ScreenGui
-MakeCorner(KeyFrame, 16)
-AnimateStroke(MakeStroke(KeyFrame))
-
--- Top bar
-local KTopBar = Instance.new("Frame")
-KTopBar.Size = UDim2.new(1, 0, 0, 50)
-KTopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
-KTopBar.BorderSizePixel = 0
-KTopBar.Parent = KeyFrame
-MakeCorner(KTopBar, 16)
-Instance.new("Frame", KTopBar).Size = UDim2.new(1,0,0,10)
-local _kfix = KTopBar:FindFirstChildOfClass("Frame")
-_kfix.Position = UDim2.new(0,0,1,-10)
-_kfix.BackgroundColor3 = Color3.fromRGB(18,18,28)
-_kfix.BorderSizePixel = 0
-
--- Logo dot
-local LogoDot = Instance.new("Frame")
-LogoDot.Size = UDim2.new(0, 10, 0, 10)
-LogoDot.Position = UDim2.new(0, 16, 0.5, -5)
-LogoDot.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-LogoDot.BorderSizePixel = 0
-LogoDot.Parent = KTopBar
-MakeCorner(LogoDot, 5)
-task.spawn(function()
-    local hue = 0
-    while LogoDot.Parent do
-        hue = (hue + 0.6) % 360
-        LogoDot.BackgroundColor3 = Color3.fromHSV(hue/360, 0.9, 1)
-        task.wait(0.04)
-    end
-end)
-
-MakeLabel(KTopBar, {
-    Text = "decompiling script  ·  v" .. VERSION,
-    Font = Enum.Font.GothamBold,
-    Size = 15,
-    Color = Color3.fromRGB(240,240,255),
-    FrameSize = UDim2.new(1,-40,1,0),
-    Pos = UDim2.new(0,32,0,0),
-    Align = Enum.TextXAlignment.Left
-})
-
-MakeLabel(KeyFrame, {
-    Text = "🔐  Enter your license key",
-    Font = Enum.Font.GothamBold,
-    Size = 16,
-    Color = Color3.fromRGB(220,220,255),
-    FrameSize = UDim2.new(1,-30,0,22),
-    Pos = UDim2.new(0,15,0,62),
-    Align = Enum.TextXAlignment.Left
-})
-
-MakeLabel(KeyFrame, {
-    Text = "Your key is saved after first use — you won't need to re-enter it",
-    Size = 12,
-    Color = Color3.fromRGB(100,100,140),
-    FrameSize = UDim2.new(1,-30,0,18),
-    Pos = UDim2.new(0,15,0,85),
-    Align = Enum.TextXAlignment.Left
-})
-
--- HWID label
-MakeLabel(KeyFrame, {
-    Text = "🖥️  HWID: " .. HWID:sub(1,20) .. "...",
-    Size = 11,
-    Color = Color3.fromRGB(65,65,100),
-    FrameSize = UDim2.new(1,-30,0,16),
-    Pos = UDim2.new(0,15,0,105),
-    Align = Enum.TextXAlignment.Left
-})
-
-local KeyBox = Instance.new("TextBox")
-KeyBox.Size = UDim2.new(0, 400, 0, 46)
-KeyBox.Position = UDim2.new(0.5, -200, 0, 130)
-KeyBox.PlaceholderText = "KEYAUTH-XXXX-XXXX-XXXX-XXXX"
-KeyBox.Text = ""
-KeyBox.TextColor3 = Color3.fromRGB(255,255,255)
-KeyBox.PlaceholderColor3 = Color3.fromRGB(65,65,100)
-KeyBox.BackgroundColor3 = Color3.fromRGB(18,18,28)
-KeyBox.BorderSizePixel = 0
-KeyBox.TextSize = 13
-KeyBox.Font = Enum.Font.Gotham
-KeyBox.Parent = KeyFrame
-MakeCorner(KeyBox, 8)
-MakeStroke(KeyBox, Color3.fromRGB(45,45,80), 1)
-
-KeyBox.Focused:Connect(function()
-    TweenService:Create(KeyBox:FindFirstChildOfClass("UIStroke"), TweenInfo.new(0.2), {Color = Color3.fromRGB(100,100,255)}):Play()
-end)
-KeyBox.FocusLost:Connect(function()
-    TweenService:Create(KeyBox:FindFirstChildOfClass("UIStroke"), TweenInfo.new(0.2), {Color = Color3.fromRGB(45,45,80)}):Play()
-end)
-
-local SubmitBtn = MakeButton(KeyFrame, {
-    Text = "🔓  Verify Key",
-    BG = Color3.fromRGB(70,70,230),
-    HoverBG = Color3.fromRGB(100,100,255),
-    FrameSize = UDim2.new(0,400,0,44),
-    Pos = UDim2.new(0.5,-200,0,188)
-})
-
-local KStatus = MakeLabel(KeyFrame, {
-    Text = "",
-    Size = 12,
-    Color = Color3.fromRGB(255,80,80),
-    FrameSize = UDim2.new(1,0,0,22),
-    Pos = UDim2.new(0,0,0,244)
-})
-
--- ================================================
--- MAIN UI (after key verified)
--- ================================================
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 660, 0, 420)
-MainFrame.Position = UDim2.new(0.5, -330, 0.5, -210)
-MainFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 17)
-MainFrame.BorderSizePixel = 0
-MainFrame.Visible = false
-MainFrame.Parent = ScreenGui
-MakeCorner(MainFrame, 16)
-AnimateStroke(MakeStroke(MainFrame))
-
--- Sidebar
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 160, 1, 0)
-Sidebar.BackgroundColor3 = Color3.fromRGB(15, 15, 23)
-Sidebar.BorderSizePixel = 0
-Sidebar.Parent = MainFrame
-MakeCorner(Sidebar, 16)
-
--- Fix sidebar right edge corners
-local SidebarFix = Instance.new("Frame")
-SidebarFix.Size = UDim2.new(0, 20, 1, 0)
-SidebarFix.Position = UDim2.new(1, -20, 0, 0)
-SidebarFix.BackgroundColor3 = Color3.fromRGB(15,15,23)
-SidebarFix.BorderSizePixel = 0
-SidebarFix.Parent = Sidebar
-
--- Sidebar title
-local SideTitle = Instance.new("Frame")
-SideTitle.Size = UDim2.new(1,0,0,60)
-SideTitle.BackgroundTransparency = 1
-SideTitle.Parent = Sidebar
-
-local SideDot = Instance.new("Frame")
-SideDot.Size = UDim2.new(0,8,0,8)
-SideDot.Position = UDim2.new(0,14,0.5,-4)
-SideDot.BackgroundColor3 = Color3.fromRGB(100,100,255)
-SideDot.BorderSizePixel = 0
-SideDot.Parent = SideTitle
-MakeCorner(SideDot, 4)
-task.spawn(function()
-    local hue = 180
-    while SideDot.Parent do
-        hue = (hue + 0.6) % 360
-        SideDot.BackgroundColor3 = Color3.fromHSV(hue/360, 0.9, 1)
-        task.wait(0.04)
-    end
-end)
-
-MakeLabel(SideTitle, {
-    Text = "zyler hub",
-    Font = Enum.Font.GothamBold,
-    Size = 15,
-    Color = Color3.fromRGB(220,220,255),
-    FrameSize = UDim2.new(1,-30,0,20),
-    Pos = UDim2.new(0,26,0,12),
-    Align = Enum.TextXAlignment.Left
-})
-MakeLabel(SideTitle, {
-    Text = "v" .. VERSION,
-    Size = 11,
-    Color = Color3.fromRGB(65,65,100),
-    FrameSize = UDim2.new(1,-30,0,16),
-    Pos = UDim2.new(0,26,0,32),
-    Align = Enum.TextXAlignment.Left
-})
-
--- Divider
-local Div1 = Instance.new("Frame")
-Div1.Size = UDim2.new(1,-20,0,1)
-Div1.Position = UDim2.new(0,10,0,60)
-Div1.BackgroundColor3 = Color3.fromRGB(30,30,50)
-Div1.BorderSizePixel = 0
-Div1.Parent = Sidebar
-
--- Tab buttons
-local tabs = {"⚙️  Decompile", "🗺️  Map Loader", "🛡️  Utilities", "💬  Discord"}
-local tabBtns = {}
-local tabFrames = {}
-
-for i, name in ipairs(tabs) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1,-16,0,38)
-    btn.Position = UDim2.new(0,8,0,68+(i-1)*44)
-    btn.BackgroundColor3 = Color3.fromRGB(22,22,34)
-    btn.BorderSizePixel = 0
-    btn.TextColor3 = Color3.fromRGB(130,130,170)
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 13
-    btn.Text = name
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    local p = Instance.new("UIPadding", btn)
-    p.PaddingLeft = UDim.new(0, 10)
-    btn.Parent = Sidebar
-    MakeCorner(btn, 8)
-    tabBtns[i] = btn
+-- Gradient username label
+local function GradLabel(parent, text, tsize, pos, fsize, z)
+    local holder = N("Frame",{Parent=parent,BackgroundTransparency=1,
+        Size=fsize or S(200,26),Position=pos or S(0,0),ZIndex=z or 2})
+    local lbl = N("TextLabel",{Parent=holder,BackgroundTransparency=1,
+        Text=text,TextSize=tsize or 18,Font=Enum.Font.GothamBold,
+        TextColor3=C.WHT,Size=P(1,0,1,0),
+        TextXAlignment=Enum.TextXAlignment.Left,ZIndex=z or 2})
+    N("UIGradient",{
+        Color=ColorSequence.new({
+            ColorSequenceKeypoint.new(0,   Color3.fromRGB(110,170,255)),
+            ColorSequenceKeypoint.new(0.4, Color3.fromRGB(190,130,255)),
+            ColorSequenceKeypoint.new(0.75,Color3.fromRGB(90,210,255)),
+            ColorSequenceKeypoint.new(1,   Color3.fromRGB(55,245,185)),
+        }),
+        Rotation=18,
+    },lbl)
+    return lbl
 end
+
+-- ══════════════════════════════════════
+-- SCREENGUI  (ZIndexBehavior.Global = ZIndex is absolute, fixes tooltips)
+-- ══════════════════════════════════════
+local SG = N("ScreenGui",{
+    Name=GUI_NAME, ResetOnSpawn=false,
+    ZIndexBehavior=Enum.ZIndexBehavior.Global,
+},CoreGui)
+
+-- ══════════════════════════════════════════════════════
+-- KEY SCREEN  460 × 295
+-- ══════════════════════════════════════════════════════
+local KF = Frame(SG, C.BG1, S(460,295), P(0.5,-230,0.5,-147), 10, 16)
+local KFS = Bdr(KF, C.BLU, 1.5)
+Rainbow(KFS,"Color", 0.45, 0.78, 1, 200)
+
+local KH = Frame(KF, C.BG2, P(1,0,0,56), S(0,0), 11, 0)
+N("UICorner",{CornerRadius=UDim.new(0,14)},KH)
+Frame(KH, C.BG2, P(1,0,0,14), S(0,42), 11)   -- kill bottom radius
+
+-- KL icon block (animated, image override when file exists)
+local KIcon = Frame(KH, C.BLU, S(36,36), S(10,10), 12, 9)
+Label(KIcon,"KL",14,C.WHT,P(1,0,1,0),S(0,0),Enum.Font.GothamBold,Enum.TextXAlignment.Center,13)
+Rainbow(KIcon,"BackgroundColor3", 0.4, 0.85, 0.95, 220)
+task.spawn(function()
+    task.wait(1)
+    if isfile and isfile(ICON_FILE) then
+        pcall(function()
+            local img = N("ImageLabel",{Image="rbxasset://../"..ICON_FILE,
+                Size=P(1,0,1,0),BackgroundTransparency=1,
+                ScaleType=Enum.ScaleType.Fit,ZIndex=14},KIcon)
+            Rnd(img,9)
+        end)
+    end
+end)
+
+-- Glow dot
+local KDot = Frame(KH, C.BLU, S(8,8), P(0,54,0.5,-4), 12, 4)
+Rainbow(KDot,"BackgroundColor3", 0.6, 0.9, 1, 220)
+
+Label(KH,"Zyler Hub",15,C.WHT,S(200,20),S(70,8),Enum.Font.GothamBold,nil,12)
+Label(KH,"v"..VERSION.."  ·  "..DISCORD,11,C.MUT,S(240,16),S(70,28),nil,nil,12)
+
+local KBadge = Frame(KH, C.GRN2, S(70,20), P(1,-78,0.5,-10), 12, 10)
+Label(KBadge,"● ONLINE",10,C.GRN,P(1,0,1,0),S(0,0),Enum.Font.GothamBold,Enum.TextXAlignment.Center,13)
+
+Label(KF,"License Required",18,C.WHT,S(428,28),S(16,66),Enum.Font.GothamBold,nil,11)
+Label(KF,"Enter your key below — it saves automatically.",12,C.DIM,S(428,18),S(16,96),nil,nil,11)
+
+local HBar = Frame(KF, C.BG2, S(428,20), S(16,118), 11, 5)
+Bdr(HBar, C.BG4, 1)
+Label(HBar,"HWID: "..HWID:sub(1,30).."...",10,C.MUT,P(1,-8,1,0),S(4,0),nil,nil,12)
+
+local KBox = N("TextBox",{Parent=KF,Size=S(428,44),Position=S(16,142),
+    BackgroundColor3=C.BG2,BorderSizePixel=0,
+    PlaceholderText="KEYAUTH-XXXX-XXXX-XXXX-XXXX",
+    Text="",TextColor3=C.WHT,PlaceholderColor3=C.MUT,
+    TextSize=13,Font=Enum.Font.Gotham,ClearTextOnFocus=false,ZIndex=11})
+Rnd(KBox,8)
+local KBoxS = Bdr(KBox, C.BG4, 1)
+KBox.Focused:Connect(function() TW(KBoxS,0.2,{Color=C.BLU}) end)
+KBox.FocusLost:Connect(function() TW(KBoxS,0.2,{Color=C.BG4}) end)
+
+local KBtn = Button(KF,"🔓  Verify Key",C.BLU,C.BLU2,S(428,42),S(16,198),13,11,9)
+Bdr(KBtn, C.BLU2, 1)
+local KMsg = Label(KF,"",11,C.RED,P(1,0,0,22),S(0,258),nil,Enum.TextXAlignment.Center,11)
+
+-- ══════════════════════════════════════════════════════
+-- MAIN WINDOW  900 × 510
+-- Layout: Sidebar=54 | Gap=6 | Content=600 | Gap=6 | Notif=228 | Pad=6
+-- Total: 54+6+600+6+228+6 = 900 ✓
+-- ══════════════════════════════════════════════════════
+local MW = N("Frame",{Parent=SG,BackgroundColor3=C.BG0,BorderSizePixel=0,
+    Size=S(900,510),Position=P(0.5,-450,0.5,-255),ZIndex=1,Visible=false})
+Rnd(MW,14)
+local MWS = Bdr(MW, C.BLU, 1.5)
+Rainbow(MWS,"Color", 0.35, 0.78, 1, 160)
+
+-- ── SIDEBAR  54×510  ZIndex 50+ so tooltips (200) always win ──
+local SB = Frame(MW, C.BG1, S(54,510), S(0,0), 50, 14)
+Frame(SB, C.BG1, S(14,510), P(1,-14,0,0), 50)   -- kill right corners
+
+-- KL icon top of sidebar
+local SBIco = Frame(SB, C.BLU, S(38,38), S(8,8), 52, 10)
+Label(SBIco,"KL",14,C.WHT,P(1,0,1,0),S(0,0),Enum.Font.GothamBold,Enum.TextXAlignment.Center,53)
+Rainbow(SBIco,"BackgroundColor3", 0.4, 0.85, 0.95, 220)
+task.spawn(function()
+    task.wait(1)
+    if isfile and isfile(ICON_FILE) then
+        pcall(function()
+            local img = N("ImageLabel",{Image="rbxasset://../"..ICON_FILE,
+                Size=P(1,0,1,0),BackgroundTransparency=1,
+                ScaleType=Enum.ScaleType.Fit,ZIndex=54},SBIco)
+            Rnd(img,10)
+        end)
+    end
+end)
+
+Frame(SB, C.BG3, S(34,1), S(10,53), 51)   -- divider
 
 -- Active tab indicator
-local ActiveIndicator = Instance.new("Frame")
-ActiveIndicator.Size = UDim2.new(0,3,0,24)
-ActiveIndicator.Position = UDim2.new(0,5,0,75)
-ActiveIndicator.BackgroundColor3 = Color3.fromRGB(100,100,255)
-ActiveIndicator.BorderSizePixel = 0
-ActiveIndicator.Parent = Sidebar
-MakeCorner(ActiveIndicator, 2)
+local NavInd = Frame(SB, C.BLU, S(3,28), S(0,67), 52, 2)
+Rainbow(NavInd,"BackgroundColor3", 0.5, 0.8, 1, 210)
 
--- Content area
-local ContentArea = Instance.new("Frame")
-ContentArea.Size = UDim2.new(1,-170,1,-10)
-ContentArea.Position = UDim2.new(0,165,0,5)
-ContentArea.BackgroundTransparency = 1
-ContentArea.Parent = MainFrame
+local NAV_META = {
+    {icon="⚡",label="Dashboard"},
+    {icon="⚙",label="Decompile"},
+    {icon="🗺",label="Map Loader"},
+    {icon="🛡",label="Utilities"},
+    {icon="💬",label="Discord"},
+}
+local NavBtns = {}
+local SwitchTab  -- forward declare
 
--- ================================================
--- TAB 1: DECOMPILE
--- ================================================
-local T1 = Instance.new("Frame")
-T1.Size = UDim2.new(1,0,1,0)
-T1.BackgroundTransparency = 1
-T1.Parent = ContentArea
+for i, def in ipairs(NAV_META) do
+    local yP = 61 + (i-1)*46
+    local nb = N("TextButton",{Parent=SB,
+        Size=S(38,38),Position=S(8,yP),
+        BackgroundTransparency=1,BackgroundColor3=C.BG3,
+        BorderSizePixel=0,Text=def.icon,TextSize=19,
+        Font=Enum.Font.GothamBold,TextColor3=C.MUT,
+        AutoButtonColor=false,ZIndex=51})
+    Rnd(nb,8)
 
-MakeLabel(T1, {
-    Text = "Decompile",
-    Font = Enum.Font.GothamBold,
-    Size = 20,
-    Color = Color3.fromRGB(240,240,255),
-    FrameSize = UDim2.new(1,-10,0,28),
-    Pos = UDim2.new(0,5,0,12),
-    Align = Enum.TextXAlignment.Left
-})
+    -- Tooltip at ZIndex 200 — always on top of EVERYTHING
+    local tt = Frame(SB, C.BG3, S(100,28), S(56, yP+5), 200, 7)
+    Bdr(tt, C.BLU, 1)
+    Label(tt, def.label, 12, C.WHT, S(92,28), S(4,0), nil, Enum.TextXAlignment.Center, 201)
+    tt.Visible = false
 
-MakeLabel(T1, {
-    Text = "Saves the entire game to your executor workspace folder.",
-    Size = 12,
-    Color = Color3.fromRGB(100,100,140),
-    FrameSize = UDim2.new(1,-10,0,18),
-    Pos = UDim2.new(0,5,0,42),
-    Align = Enum.TextXAlignment.Left
-})
-
--- Game info card
-local GameCard = Instance.new("Frame")
-GameCard.Size = UDim2.new(1,-10,0,64)
-GameCard.Position = UDim2.new(0,5,0,70)
-GameCard.BackgroundColor3 = Color3.fromRGB(18,18,28)
-GameCard.BorderSizePixel = 0
-GameCard.Parent = T1
-MakeCorner(GameCard, 10)
-MakeStroke(GameCard, Color3.fromRGB(35,35,60), 1)
-
-MakeLabel(GameCard, {
-    Text = "🎮  Target Game",
-    Font = Enum.Font.GothamBold,
-    Size = 12,
-    Color = Color3.fromRGB(100,100,150),
-    FrameSize = UDim2.new(1,-15,0,20),
-    Pos = UDim2.new(0,12,0,8),
-    Align = Enum.TextXAlignment.Left
-})
-MakeLabel(GameCard, {
-    Text = gameName,
-    Font = Enum.Font.GothamBold,
-    Size = 15,
-    Color = Color3.fromRGB(220,220,255),
-    FrameSize = UDim2.new(1,-15,0,24),
-    Pos = UDim2.new(0,12,0,30),
-    Align = Enum.TextXAlignment.Left
-})
-
-local DecompBtn = MakeButton(T1, {
-    Text = "⚙️  Decompile  " .. gameName,
-    BG = Color3.fromRGB(70,70,230),
-    HoverBG = Color3.fromRGB(100,100,255),
-    FrameSize = UDim2.new(1,-10,0,48),
-    Pos = UDim2.new(0,5,0,148)
-})
-MakeStroke(DecompBtn, Color3.fromRGB(120,120,255), 1)
-
-local DecompStatus = MakeLabel(T1, {
-    Text = "Ready to decompile.",
-    Size = 12,
-    Color = Color3.fromRGB(80,255,120),
-    FrameSize = UDim2.new(1,-10,0,20),
-    Pos = UDim2.new(0,5,0,208),
-    Align = Enum.TextXAlignment.Left
-})
-
--- Progress bar background
-local ProgBG = Instance.new("Frame")
-ProgBG.Size = UDim2.new(1,-10,0,6)
-ProgBG.Position = UDim2.new(0,5,0,232)
-ProgBG.BackgroundColor3 = Color3.fromRGB(25,25,40)
-ProgBG.BorderSizePixel = 0
-ProgBG.Parent = T1
-MakeCorner(ProgBG, 3)
-
-local ProgBar = Instance.new("Frame")
-ProgBar.Size = UDim2.new(0,0,1,0)
-ProgBar.BackgroundColor3 = Color3.fromRGB(80,80,255)
-ProgBar.BorderSizePixel = 0
-ProgBar.Parent = ProgBG
-MakeCorner(ProgBar, 3)
-
--- ================================================
--- TAB 2: MAP LOADER
--- ================================================
-local T2 = Instance.new("Frame")
-T2.Size = UDim2.new(1,0,1,0)
-T2.BackgroundTransparency = 1
-T2.Visible = false
-T2.Parent = ContentArea
-
-MakeLabel(T2, {
-    Text = "Map Loader",
-    Font = Enum.Font.GothamBold,
-    Size = 20,
-    Color = Color3.fromRGB(240,240,255),
-    FrameSize = UDim2.new(1,-10,0,28),
-    Pos = UDim2.new(0,5,0,12),
-    Align = Enum.TextXAlignment.Left
-})
-MakeLabel(T2, {
-    Text = "Forces StreamingEnabled games to load the entire map at once.",
-    Size = 12,
-    Color = Color3.fromRGB(100,100,140),
-    FrameSize = UDim2.new(1,-10,0,18),
-    Pos = UDim2.new(0,5,0,42),
-    Align = Enum.TextXAlignment.Left
-})
-
--- Info card
-local MapInfoCard = Instance.new("Frame")
-MapInfoCard.Size = UDim2.new(1,-10,0,80)
-MapInfoCard.Position = UDim2.new(0,5,0,70)
-MapInfoCard.BackgroundColor3 = Color3.fromRGB(18,18,28)
-MapInfoCard.BorderSizePixel = 0
-MapInfoCard.Parent = T2
-MakeCorner(MapInfoCard, 10)
-MakeStroke(MapInfoCard, Color3.fromRGB(35,35,60), 1)
-
-MakeLabel(MapInfoCard, {Text = "⚠️  How it works:", Font = Enum.Font.GothamBold, Size = 13, Color = Color3.fromRGB(255,200,80), FrameSize = UDim2.new(1,-15,0,20), Pos = UDim2.new(0,12,0,8), Align = Enum.TextXAlignment.Left})
-MakeLabel(MapInfoCard, {Text = "1. Disables StreamingEnabled on client", Size = 12, Color = Color3.fromRGB(130,130,170), FrameSize = UDim2.new(1,-15,0,16), Pos = UDim2.new(0,12,0,28), Align = Enum.TextXAlignment.Left})
-MakeLabel(MapInfoCard, {Text = "2. Requests all map chunks from server", Size = 12, Color = Color3.fromRGB(130,130,170), FrameSize = UDim2.new(1,-15,0,16), Pos = UDim2.new(0,12,0,44), Align = Enum.TextXAlignment.Left})
-MakeLabel(MapInfoCard, {Text = "3. Scans map with camera to trigger loading", Size = 12, Color = Color3.fromRGB(130,130,170), FrameSize = UDim2.new(1,-15,0,16), Pos = UDim2.new(0,12,0,60), Align = Enum.TextXAlignment.Left})
-
-local MapBtn = MakeButton(T2, {
-    Text = "🗺️  Load Full Map",
-    BG = Color3.fromRGB(40,140,80),
-    HoverBG = Color3.fromRGB(60,180,100),
-    FrameSize = UDim2.new(1,-10,0,48),
-    Pos = UDim2.new(0,5,0,162)
-})
-
-local MapStatus = MakeLabel(T2, {
-    Text = "Press the button to start loading.",
-    Size = 12,
-    Color = Color3.fromRGB(100,100,140),
-    FrameSize = UDim2.new(1,-10,0,20),
-    Pos = UDim2.new(0,5,0,220),
-    Align = Enum.TextXAlignment.Left
-})
-
-local MapProgBG = Instance.new("Frame")
-MapProgBG.Size = UDim2.new(1,-10,0,6)
-MapProgBG.Position = UDim2.new(0,5,0,244)
-MapProgBG.BackgroundColor3 = Color3.fromRGB(25,25,40)
-MapProgBG.BorderSizePixel = 0
-MapProgBG.Parent = T2
-MakeCorner(MapProgBG, 3)
-
-local MapProgBar = Instance.new("Frame")
-MapProgBar.Size = UDim2.new(0,0,1,0)
-MapProgBar.BackgroundColor3 = Color3.fromRGB(60,200,100)
-MapProgBar.BorderSizePixel = 0
-MapProgBar.Parent = MapProgBG
-MakeCorner(MapProgBar, 3)
-
--- ================================================
--- TAB 3: UTILITIES
--- ================================================
-local T3 = Instance.new("Frame")
-T3.Size = UDim2.new(1,0,1,0)
-T3.BackgroundTransparency = 1
-T3.Visible = false
-T3.Parent = ContentArea
-
-MakeLabel(T3, {
-    Text = "Utilities",
-    Font = Enum.Font.GothamBold,
-    Size = 20,
-    Color = Color3.fromRGB(240,240,255),
-    FrameSize = UDim2.new(1,-10,0,28),
-    Pos = UDim2.new(0,5,0,12),
-    Align = Enum.TextXAlignment.Left
-})
-
-local function MakeToggleCard(parent, yPos, icon, title, desc)
-    local card = Instance.new("Frame")
-    card.Size = UDim2.new(1,-10,0,64)
-    card.Position = UDim2.new(0,5,0,yPos)
-    card.BackgroundColor3 = Color3.fromRGB(18,18,28)
-    card.BorderSizePixel = 0
-    card.Parent = parent
-    MakeCorner(card, 10)
-    MakeStroke(card, Color3.fromRGB(35,35,60), 1)
-
-    MakeLabel(card, {Text = icon .. "  " .. title, Font = Enum.Font.GothamBold, Size = 14, Color = Color3.fromRGB(210,210,255), FrameSize = UDim2.new(1,-90,0,20), Pos = UDim2.new(0,12,0,8), Align = Enum.TextXAlignment.Left})
-    MakeLabel(card, {Text = desc, Size = 11, Color = Color3.fromRGB(90,90,130), FrameSize = UDim2.new(1,-90,0,16), Pos = UDim2.new(0,12,0,32), Align = Enum.TextXAlignment.Left})
-
-    local toggle = Instance.new("TextButton")
-    toggle.Size = UDim2.new(0,52,0,28)
-    toggle.Position = UDim2.new(1,-64,0.5,-14)
-    toggle.BackgroundColor3 = Color3.fromRGB(35,35,55)
-    toggle.BorderSizePixel = 0
-    toggle.Text = "OFF"
-    toggle.TextColor3 = Color3.fromRGB(100,100,140)
-    toggle.TextSize = 11
-    toggle.Font = Enum.Font.GothamBold
-    toggle.Parent = card
-    MakeCorner(toggle, 14)
-
-    return card, toggle
+    nb.MouseEnter:Connect(function()
+        tt.Visible = true
+        TW(nb,0.1,{BackgroundTransparency=0, BackgroundColor3=C.BG3})
+    end)
+    nb.MouseLeave:Connect(function()
+        tt.Visible = false
+        TW(nb,0.1,{BackgroundTransparency=1})
+    end)
+    nb.MouseButton1Click:Connect(function()
+        if SwitchTab then SwitchTab(i) end
+    end)
+    NavBtns[i] = nb
 end
 
-local _, AfkToggle = MakeToggleCard(T3, 50, "🛡️", "Anti-AFK", "Prevents Roblox from disconnecting you")
-local _, FpsToggle = MakeToggleCard(T3, 126, "⚡", "FPS Unlocker", "Removes the 60fps cap (requires setfpscap)")
+-- Discord bottom button
+local SBD = Frame(SB, C.DISC, S(38,38), S(8,462), 52, 9)
+Label(SBD,"💬",18,C.WHT,P(1,0,1,0),S(0,0),nil,Enum.TextXAlignment.Center,53)
+N("TextButton",{Parent=SBD,Size=P(1,0,1,0),BackgroundTransparency=1,
+    Text="",ZIndex=54,BorderSizePixel=0}).MouseButton1Click:Connect(OpenDiscord)
 
-local CopyHWIDBtn = MakeButton(T3, {
-    Text = "📋  Copy HWID to Clipboard",
-    BG = Color3.fromRGB(40,40,70),
-    HoverBG = Color3.fromRGB(60,60,100),
-    FrameSize = UDim2.new(1,-10,0,44),
-    Pos = UDim2.new(0,5,0,210)
-})
-MakeStroke(CopyHWIDBtn, Color3.fromRGB(60,60,100), 1)
+-- ── NOTIFICATION PANEL  228×498  x=666 ──
+local NP = Frame(MW, C.BG1, S(228,498), S(666,6), 2, 10)
+Bdr(NP, C.BG3, 1)
 
-MakeLabel(T3, {
-    Text = "🖥️  HWID: " .. HWID,
-    Size = 10,
-    Color = Color3.fromRGB(55,55,85),
-    FrameSize = UDim2.new(1,-10,0,16),
-    Pos = UDim2.new(0,5,0,260),
-    Align = Enum.TextXAlignment.Left
-})
+local NPH = Frame(NP, C.BG2, P(1,0,0,40), S(0,0), 3, 10)
+Bdr(NPH, C.BG3, 1)
+Frame(NPH, C.BG2, P(1,0,0,14), S(0,26), 3)
+local NPDot = Frame(NPH, C.BLU, S(7,7), S(10,16), 4, 4)
+Rainbow(NPDot,"BackgroundColor3", 0.5, 0.9, 1, 200)
+Label(NPH,"🔔  Activity",12,C.WHT,S(180,18),S(24,11),Enum.Font.GothamBold,nil,4)
 
--- ================================================
--- TAB 4: DISCORD
--- ================================================
-local T4 = Instance.new("Frame")
-T4.Size = UDim2.new(1,0,1,0)
-T4.BackgroundTransparency = 1
-T4.Visible = false
-T4.Parent = ContentArea
+local NS = N("ScrollingFrame",{Parent=NP,
+    Size=S(220,450),Position=S(4,44),
+    BackgroundTransparency=1,BorderSizePixel=0,
+    ScrollBarThickness=2,CanvasSize=S(0,0),
+    AutomaticCanvasSize=Enum.AutomaticSize.Y,ZIndex=3})
+N("UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,3)},NS)
 
-MakeLabel(T4, {
-    Text = "Join our Discord",
-    Font = Enum.Font.GothamBold,
-    Size = 20,
-    Color = Color3.fromRGB(240,240,255),
-    FrameSize = UDim2.new(1,-10,0,28),
-    Pos = UDim2.new(0,5,0,12),
-    Align = Enum.TextXAlignment.Left
-})
-
--- Discord card
-local DiscordCard = Instance.new("Frame")
-DiscordCard.Size = UDim2.new(1,-10,0,170)
-DiscordCard.Position = UDim2.new(0,5,0,52)
-DiscordCard.BackgroundColor3 = Color3.fromRGB(88,101,242)
-DiscordCard.BorderSizePixel = 0
-DiscordCard.Parent = T4
-MakeCorner(DiscordCard, 14)
-
--- Glow effect on card
-local CardGlow = Instance.new("UIStroke", DiscordCard)
-CardGlow.Color = Color3.fromRGB(120,130,255)
-CardGlow.Thickness = 1.5
-
-MakeLabel(DiscordCard, {
-    Text = "discord",
-    Font = Enum.Font.GothamBold,
-    Size = 32,
-    Color = Color3.fromRGB(255,255,255),
-    FrameSize = UDim2.new(1,-20,0,44),
-    Pos = UDim2.new(0,15,0,14),
-    Align = Enum.TextXAlignment.Left
-})
-
-MakeLabel(DiscordCard, {
-    Text = "Get updates, keys, and support\nfrom the zyler hub community!",
-    Size = 13,
-    Color = Color3.fromRGB(200,205,255),
-    FrameSize = UDim2.new(1,-20,0,46),
-    Pos = UDim2.new(0,15,0,58),
-    Align = Enum.TextXAlignment.Left
-})
-
-MakeLabel(DiscordCard, {
-    Text = "🔗  " .. DISCORD,
-    Font = Enum.Font.GothamBold,
-    Size = 14,
-    Color = Color3.fromRGB(255,255,255),
-    FrameSize = UDim2.new(1,-20,0,22),
-    Pos = UDim2.new(0,15,0,108),
-    Align = Enum.TextXAlignment.Left
-})
-
-local JoinBtn = MakeButton(DiscordCard, {
-    Text = "Join Server →",
-    BG = Color3.fromRGB(255,255,255),
-    HoverBG = Color3.fromRGB(220,220,255),
-    FrameSize = UDim2.new(0,140,0,36),
-    Pos = UDim2.new(1,-150,1,-46)
-})
-JoinBtn.TextColor3 = Color3.fromRGB(88,101,242)
-JoinBtn.Font = Enum.Font.GothamBold
-JoinBtn.TextSize = 13
-
-MakeLabel(T4, {
-    Text = "⚠️  Clicking will copy the link to your clipboard",
-    Size = 11,
-    Color = Color3.fromRGB(70,70,110),
-    FrameSize = UDim2.new(1,-10,0,18),
-    Pos = UDim2.new(0,5,0,230),
-    Align = Enum.TextXAlignment.Left
-})
-
--- What's in the server
-MakeLabel(T4, {
-    Text = "What's in the server:",
-    Font = Enum.Font.GothamBold,
-    Size = 13,
-    Color = Color3.fromRGB(130,130,170),
-    FrameSize = UDim2.new(1,-10,0,20),
-    Pos = UDim2.new(0,5,0,256),
-    Align = Enum.TextXAlignment.Left
-})
-
-local perks = {"🔑  Free keys & giveaways", "🚀  Script updates & announcements", "💬  Community & support"}
-for i, perk in ipairs(perks) do
-    MakeLabel(T4, {
-        Text = perk,
-        Size = 12,
-        Color = Color3.fromRGB(100,100,145),
-        FrameSize = UDim2.new(1,-10,0,18),
-        Pos = UDim2.new(0,15,0,274+(i-1)*20),
-        Align = Enum.TextXAlignment.Left
-    })
+local nIdx = 0
+local quietMode = false
+local function AddNotif(msg, col, icon)
+    if quietMode then return end
+    nIdx = nIdx + 1
+    local card = Frame(NS, C.BG2, S(216,52), nil, 3, 7)
+    Bdr(card, C.BG3, 1)
+    card.LayoutOrder = nIdx
+    local ib = Frame(card, col or C.BLU3, S(26,26), S(6,13), 4, 7)
+    ib.BackgroundTransparency = 0.5
+    Label(ib, icon or "⚡", 13, C.WHT, P(1,0,1,0), S(0,0), nil, Enum.TextXAlignment.Center, 5)
+    Label(card, msg, 10, C.WHT, S(176,28), S(36,4), nil, nil, 4)
+    Label(card, os.date("%H:%M:%S"), 9, C.MUT, S(176,14), S(36,34), nil, nil, 4)
+    task.wait()
+    NS.CanvasPosition = Vector2.new(0, math.huge)
 end
 
--- ================================================
--- TAB SWITCHING LOGIC
--- ================================================
-local allTabs = {T1, T2, T3, T4}
-local currentTab = 1
+-- ── CONTENT AREA  600×498  x=60 ──
+local CP = Frame(MW, C.BG0, S(600,498), S(60,6), 1)
+CP.BackgroundTransparency = 1
 
-local function SwitchTab(idx)
-    currentTab = idx
-    for i, frame in ipairs(allTabs) do
-        frame.Visible = (i == idx)
+local function MakeTab()
+    local t = Frame(CP, C.BG0, P(1,0,1,0), S(0,0), 1)
+    t.BackgroundTransparency = 1
+    t.Visible = false
+    return t
+end
+
+-- ══════════════════════════════════════
+-- DASHBOARD TAB
+-- Banner:  y=0   h=70
+-- Cards:   y=78  h=145  (UserCard 342px | QuickLaunch 252px | gap 6)
+-- InfoRow: y=231 h=40
+-- Toggles: y=279 h=86
+-- ══════════════════════════════════════
+local T1 = MakeTab() T1.Visible = true
+
+-- Welcome banner / drag handle
+local WB = Frame(T1, C.BG1, S(600,70), S(0,0), 2, 10)
+Bdr(WB, C.BG3, 1)
+local WG = Frame(WB, C.BLU, P(0.6,0,0,2), S(0,0), 3, 1)
+Rainbow(WG,"BackgroundColor3", 0.3, 0.8, 1, 210)
+Label(WB,"Hello, "..username.." 👋",21,C.WHT,S(380,30),S(14,8),Enum.Font.GothamBold,nil,3)
+Label(WB,"🎮  "..gameName:sub(1,36).."  ·  ID: "..placeId,11,C.DIM,S(450,16),S(14,40),nil,nil,3)
+local PIB = Frame(WB, C.BG2, S(130,42), P(1,-138,0.5,-21), 3, 7)
+Bdr(PIB, C.BG3, 1)
+Label(PIB,"Place ID",9,C.MUT,S(118,14),S(6,4),nil,nil,4)
+Label(PIB,placeId,12,C.CYN,S(118,20),S(6,20),Enum.Font.GothamBold,nil,4)
+
+-- Drag
+do
+    local drag, ds, sp = false
+    WB.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            drag=true ds=inp.Position sp=MW.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(inp)
+        if drag and inp.UserInputType == Enum.UserInputType.MouseMovement then
+            local d = inp.Position - ds
+            MW.Position = UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1 then drag=false end
+    end)
+end
+
+-- User card  342×145  y=78
+local UC = Frame(T1, C.BG1, S(342,145), S(0,78), 2, 10)
+Bdr(UC, C.BG3, 1)
+
+local AV = Frame(UC, C.BLU, S(60,60), S(10,10), 3, 30)
+Label(AV,username:sub(1,2):upper(),22,C.WHT,P(1,0,1,0),S(0,0),Enum.Font.GothamBold,Enum.TextXAlignment.Center,4)
+Rainbow(AV,"BackgroundColor3", 0.4, 0.82, 1, 190)
+local ODot = Frame(AV, C.GRN, S(13,13), S(45,45), 5, 7)
+Bdr(ODot, C.BG1, 2)
+
+GradLabel(UC, username, 18, S(80,10), S(250,24), 3)
+local StatLbl = Label(UC,"● Active  ·  00:00",12,C.GRN,S(250,18),S(80,36),nil,nil,3)
+Label(UC,"HWID: "..HWID:sub(1,20).."...",10,C.MUT,S(250,14),S(80,56),nil,nil,3)
+
+-- 3 stat circles  each 106×48  y=91
+local circVals = {}
+local circK = {"decomps","mapLoads","errors"}
+local circC = {C.BLU, C.GRN, C.RED}
+local circL = {"DECOMPS","MAPS","ERRORS"}
+for i = 1, 3 do
+    local xo = (i-1)*114
+    local circ = Frame(UC, C.BG2, S(106,48), S(xo+4,91), 3, 8)
+    Bdr(circ, C.BG4, 1)
+    local vl = Label(circ,"0",20,circC[i],P(1,0,0,30),S(0,4),Enum.Font.GothamBold,Enum.TextXAlignment.Center,4)
+    Label(circ,circL[i],8,C.MUT,P(1,0,0,14),S(0,32),Enum.Font.GothamBold,Enum.TextXAlignment.Center,4)
+    circVals[circK[i]] = vl
+end
+
+-- Quick Launch  252×145  x=348
+local QP = Frame(T1, C.BG1, S(252,145), S(348,78), 2, 10)
+Bdr(QP, C.BG3, 1)
+Label(QP,"Quick Launch",13,C.WHT,S(230,18),S(8,6),Enum.Font.GothamBold,nil,3)
+
+local qdefs = {
+    {t="⚙ Decompile",tab=2,bg=C.BLU3,hv=C.BLU},
+    {t="🗺 Map Loader",tab=3,bg=C.GRN2,hv=C.GRN},
+    {t="🛡 Utilities",tab=4,bg=Color3.fromRGB(50,28,90),hv=C.PUR},
+    {t="💬 Discord",tab=5,bg=Color3.fromRGB(46,54,120),hv=C.DISC},
+}
+for i, q in ipairs(qdefs) do
+    local row = math.ceil(i/2)
+    local col = (i-1)%2
+    local qb = Button(QP,q.t,q.bg,q.hv,S(116,36),S(6+col*122,26+(row-1)*44),11,3,7)
+    qb.MouseButton1Click:Connect(function() if SwitchTab then SwitchTab(q.tab) end end)
+end
+
+-- Info Row  600×40  y=231
+local IR = Frame(T1, C.BG1, S(600,40), S(0,231), 2, 8)
+Bdr(IR, C.BG3, 1)
+local UptLbl
+local idata = {{"Version","v"..VERSION},{"Uptime","00:00","u"},{"Game",gameName:sub(1,18)}}
+for i, it in ipairs(idata) do
+    local xo = (i-1)*200
+    Label(IR,it[1],9,C.MUT,S(188,13),S(xo+8,3),nil,nil,3)
+    local vl = Label(IR,it[2],14,C.WHT,S(188,20),S(xo+8,17),Enum.Font.GothamBold,nil,3)
+    if it[3]=="u" then UptLbl=vl end
+end
+
+-- Live timer
+task.spawn(function()
+    while T1.Parent do
+        local e = os.time()-sessionStart
+        local t = string.format("%02d:%02d",math.floor(e/60),e%60)
+        pcall(function() StatLbl.Text="● Active  ·  "..t end)
+        pcall(function() if UptLbl then UptLbl.Text=t end end)
+        for k,lbl in pairs(circVals) do
+            pcall(function() lbl.Text=tostring(stats[k] or 0) end)
+        end
+        task.wait(1)
     end
-    for i, btn in ipairs(tabBtns) do
-        if i == idx then
-            btn.TextColor3 = Color3.fromRGB(220,220,255)
-            btn.Font = Enum.Font.GothamBold
-            btn.BackgroundColor3 = Color3.fromRGB(30,30,48)
+end)
+
+-- Quick Toggles  600×86  y=279
+local QT = Frame(T1, C.BG1, S(600,86), S(0,279), 2, 10)
+Bdr(QT, C.BG3, 1)
+Label(QT,"Quick Toggles",13,C.WHT,S(250,18),S(10,5),Enum.Font.GothamBold,nil,3)
+
+local function TogCard(parent, xo, wo, label, desc)
+    local card = Frame(parent, C.BG2, S(wo,58), S(xo,24), 3, 8)
+    Bdr(card, C.BG4, 1)
+    Label(card,label,13,C.WHT,S(wo-68,20),S(8,6),Enum.Font.GothamBold,nil,4)
+    Label(card,desc,11,C.DIM,S(wo-68,16),S(8,28),nil,nil,4)
+    local tb = N("TextButton",{Parent=card,Size=S(52,24),Position=P(1,-58,0.5,-12),
+        BackgroundColor3=C.BG3,BorderSizePixel=0,Text="OFF",
+        TextColor3=C.MUT,TextSize=11,Font=Enum.Font.GothamBold,
+        AutoButtonColor=false,ZIndex=5})
+    Rnd(tb,12)
+    Bdr(tb,C.BG4,1)
+    return tb
+end
+
+local DashAFK = TogCard(QT, 0,   297, "Anti-AFK",  "Prevent idle kick")
+local DashFPS = TogCard(QT, 303, 297, "FPS Unlock", "Remove 60fps cap")
+
+-- ══════════════════════════════════════
+-- DECOMPILE TAB
+-- ══════════════════════════════════════
+local T2 = MakeTab()
+
+local D2H = Frame(T2, C.BG1, S(600,58), S(0,0), 2, 10)
+Bdr(D2H, C.BG3, 1)
+local D2G = Frame(D2H, C.BLU, P(0.55,0,0,2), S(0,0), 3, 1)
+Rainbow(D2G,"BackgroundColor3",0.3,0.8,1,210)
+Frame(D2H, C.BLU, S(3,32), S(0,13), 3, 2)
+Label(D2H,"Decompile",20,C.WHT,S(280,28),S(10,8),Enum.Font.GothamBold,nil,3)
+Label(D2H,"Full save · StarterGui · Terrain · All Services · Scripts · Branding replaced",11,C.DIM,S(580,16),S(10,36),nil,nil,3)
+
+local GC = Frame(T2, C.BG1, S(600,50), S(0,66), 2, 8)
+Bdr(GC, C.BG3, 1)
+Frame(GC, C.BLU, S(4,32), S(0,9), 3, 2)
+Label(GC,"🎮  "..gameName:sub(1,44),14,C.WHT,S(450,22),S(12,14),Enum.Font.GothamBold,nil,3)
+local GCB = Frame(GC, C.BG2, S(100,22), P(1,-106,0.5,-11), 3, 6)
+Bdr(GCB, C.BG4, 1)
+Label(GCB,"ID: "..placeId,10,C.CYN,P(1,-8,1,0),S(4,0),nil,nil,4)
+
+local checks = {
+    {"✓","StarterGui — all UI elements saved",C.GRN},
+    {"✓","Terrain — SmoothGrid + heightmap",C.GRN},
+    {"✓","Workspace, ReplicatedStorage, Lighting...",C.GRN},
+    {"✓","Scripts & ModuleScripts decompiled",C.CYN},
+    {"✓","Branding replaced → discord.gg/kyzes",C.BLU},
+}
+for i, ch in ipairs(checks) do
+    local row = Frame(T2, C.BG0, S(600,20), S(0,124+(i-1)*22), 2)
+    row.BackgroundTransparency = 1
+    Label(row,ch[1],12,ch[3],S(18,20),S(0,0),Enum.Font.GothamBold,nil,3)
+    Label(row,ch[2],12,C.DIM,S(574,20),S(20,0),nil,nil,3)
+end
+
+local D2Btn = Button(T2,"⚙  Decompile  "..gameName:sub(1,30),C.BLU,C.BLU2,S(600,44),S(0,240),14,3,9)
+Bdr(D2Btn, C.BLU2, 1)
+
+local D2PBG = Frame(T2, C.BG2, S(600,4), S(0,292), 2, 2)
+local D2PF  = Frame(D2PBG, C.BLU, S(0,4), S(0,0), 3, 2)
+Rainbow(D2PF,"BackgroundColor3",0.4,0.8,1,210)
+
+local D2Stat = Label(T2,"Ready.",12,C.GRN,S(600,18),S(0,302),nil,nil,2)
+
+local D2Log = N("ScrollingFrame",{Parent=T2,
+    Size=S(600,90),Position=S(0,326),
+    BackgroundColor3=C.BG2,BorderSizePixel=0,
+    ScrollBarThickness=2,CanvasSize=S(0,0),
+    AutomaticCanvasSize=Enum.AutomaticSize.Y,ZIndex=2})
+Rnd(D2Log,7) Bdr(D2Log,C.BG3,1)
+N("UIListLayout",{SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,1)},D2Log)
+Pad(D2Log,4,4,2,2)
+
+local logIdx = 0
+local function AddLog(msg, col)
+    logIdx = logIdx + 1
+    N("TextLabel",{Parent=D2Log,Size=P(1,-8,0,16),BackgroundTransparency=1,
+        Text="  › "..msg,TextColor3=col or C.DIM,TextSize=10,Font=Enum.Font.Gotham,
+        TextXAlignment=Enum.TextXAlignment.Left,LayoutOrder=logIdx,ZIndex=3})
+    task.wait()
+    D2Log.CanvasPosition = Vector2.new(0,math.huge)
+    AddNotif(msg:sub(1,44), col or C.BLU3, "⚙")
+end
+
+-- ══════════════════════════════════════
+-- MAP LOADER TAB
+-- ══════════════════════════════════════
+local T3 = MakeTab()
+
+local M3H = Frame(T3, C.BG1, S(600,58), S(0,0), 2, 10)
+Bdr(M3H, C.BG3, 1)
+local M3G = Frame(M3H, C.GRN, P(0.55,0,0,2), S(0,0), 3, 1)
+Frame(M3H, C.GRN, S(3,32), S(0,13), 3, 2)
+Label(M3H,"Map Loader",20,C.WHT,S(280,28),S(10,8),Enum.Font.GothamBold,nil,3)
+Label(M3H,"Forces streaming games to load the entire world into memory",11,C.DIM,S(580,16),S(10,36),nil,nil,3)
+
+local mSteps={
+    {"1","Disables workspace.StreamingEnabled client-side",C.CYN},
+    {"2","RequestStreamAroundAsync on 13 strategic points",C.BLU},
+    {"3","Camera sweep — triggers all remaining streaming assets",C.GRN},
+    {"4","Camera restored — entire map now resident in memory",C.YEL},
+}
+for i, s in ipairs(mSteps) do
+    local row = Frame(T3, C.BG1, S(600,38), S(0,66+(i-1)*44), 2, 8)
+    Bdr(row, C.BG3, 1)
+    local badge = Frame(row, s[3], S(24,24), S(8,7), 3, 12)
+    badge.BackgroundTransparency = 0.5
+    Label(badge,s[1],11,C.WHT,P(1,0,1,0),S(0,0),Enum.Font.GothamBold,Enum.TextXAlignment.Center,4)
+    Label(row,s[2],12,C.WHT,S(554,18),S(40,10),nil,nil,3)
+end
+
+local M3Btn = Button(T3,"🗺  Load Full Map",C.GRN2,C.GRN,S(600,44),S(0,250),14,3,9)
+local M3PBG = Frame(T3, C.BG2, S(600,4), S(0,302), 2, 2)
+local M3PF  = Frame(M3PBG, C.GRN, S(0,4), S(0,0), 3, 2)
+local M3St  = Label(T3,"Ready. Press the button to start loading.",12,C.DIM,S(600,18),S(0,312),nil,nil,2)
+
+-- ══════════════════════════════════════
+-- UTILITIES TAB
+-- ══════════════════════════════════════
+local T4 = MakeTab()
+
+local U4H = Frame(T4, C.BG1, S(600,58), S(0,0), 2, 10)
+Bdr(U4H, C.BG3, 1)
+Frame(U4H, C.PUR, S(3,32), S(0,13), 3, 2)
+Label(U4H,"Utilities",20,C.WHT,S(280,28),S(10,8),Enum.Font.GothamBold,nil,3)
+Label(U4H,"Tools to enhance your decompiling session",11,C.DIM,S(580,16),S(10,36),nil,nil,3)
+
+local function URow(parent, yPos, icon, title, desc, acc)
+    local card = Frame(parent, C.BG1, S(600,62), S(0,yPos), 2, 9)
+    Bdr(card, C.BG3, 1)
+    Frame(card, acc, S(3,42), S(0,10), 3, 2)
+    local ib = Frame(card, acc, S(36,36), S(10,13), 3, 8)
+    ib.BackgroundTransparency = 0.55
+    Label(ib,icon,18,C.WHT,P(1,0,1,0),S(0,0),nil,Enum.TextXAlignment.Center,4)
+    Label(card,title,14,C.WHT,S(440,22),S(54,8),Enum.Font.GothamBold,nil,3)
+    Label(card,desc,11,C.DIM,S(440,18),S(54,32),nil,nil,3)
+    local tb = N("TextButton",{Parent=card,Size=S(54,26),Position=P(1,-60,0.5,-13),
+        BackgroundColor3=C.BG3,BorderSizePixel=0,Text="OFF",
+        TextColor3=C.MUT,TextSize=11,Font=Enum.Font.GothamBold,
+        AutoButtonColor=false,ZIndex=4})
+    Rnd(tb,13) Bdr(tb,C.BG4,1)
+    return tb
+end
+
+local U4AFK  = URow(T4, 66,  "🛡","Anti-AFK",    "Prevents 20-min idle kick",         C.GRN)
+local U4FPS  = URow(T4, 136, "⚡","FPS Unlocker", "Uncaps framerate via setfpscap",    C.CYN)
+local U4NOTI = URow(T4, 206, "🔕","Quiet Mode",   "Suppress activity notifications",   C.YEL)
+
+local U4Cp = Button(T4,"📋  Copy HWID to Clipboard",C.BG2,C.BG3,S(600,38),S(0,280),12,3,8)
+Bdr(U4Cp, C.BG4, 1)
+Label(T4,"HWID: "..HWID,9,C.MUT,S(600,14),S(0,324),nil,nil,2)
+
+-- ══════════════════════════════════════
+-- DISCORD TAB
+-- ══════════════════════════════════════
+local T5 = MakeTab()
+
+local DBan = Frame(T5, C.DISC, S(600,155), S(0,0), 2, 12)
+Bdr(DBan, Color3.fromRGB(130,145,255), 1)
+for i=1,4 do
+    local blob=Frame(DBan,Color3.fromRGB(110,125,255),S(40+i*20,40+i*20),P(1,-60+i*8,0,-14+i*12),2,100)
+    blob.BackgroundTransparency=0.7
+end
+Label(DBan,"discord",36,C.WHT,S(260,50),S(14,10),Enum.Font.GothamBold,nil,3)
+Label(DBan,"Join Zyler Hub — Keys · Updates · Support",13,Color3.fromRGB(200,210,255),S(520,24),S(14,60),nil,nil,3)
+Label(DBan,"🔗  discord.gg/kyzes",15,C.WHT,S(280,24),S(14,86),Enum.Font.GothamBold,nil,3)
+local JBtn = Button(DBan,"Join →",C.WHT,Color3.fromRGB(220,226,255),S(120,36),P(1,-130,1,-48),13,3,8)
+JBtn.TextColor3 = C.DISC
+
+Label(T5,"⚠  The link is copied to clipboard when you click Join",11,C.MUT,S(560,16),S(0,160),nil,nil,2)
+Label(T5,"What you get:",13,C.WHT,S(560,20),S(0,182),Enum.Font.GothamBold,nil,2)
+
+local perks={
+    {"🔑","Free keys & regular giveaways",C.YEL},
+    {"🚀","Script updates & changelogs",C.GRN},
+    {"💬","Community chat & direct support",C.CYN},
+    {"🛡","Exclusive tools for members",C.PUR},
+    {"⚡","Early access to new features",C.BLU},
+}
+for i, pk in ipairs(perks) do
+    local pr = Frame(T5, C.BG1, S(600,36), S(0,206+(i-1)*42), 2, 8)
+    Bdr(pr, C.BG3, 1)
+    local ib = Frame(pr, C.BG2, S(28,28), S(5,4), 3, 7)
+    Label(ib,pk[1],15,pk[3],P(1,0,1,0),S(0,0),nil,Enum.TextXAlignment.Center,4)
+    Label(pr,pk[2],13,C.WHT,S(550,20),S(40,8),nil,nil,3)
+end
+
+-- ══════════════════════════════════════
+-- TAB SWITCHING
+-- ══════════════════════════════════════
+local allTabs = {T1,T2,T3,T4,T5}
+
+SwitchTab = function(idx)
+    for i, t in ipairs(allTabs) do t.Visible=(i==idx) end
+    for i, b in ipairs(NavBtns) do
+        if i==idx then
+            b.TextColor3=C.WHT
+            TW(b,0.12,{BackgroundTransparency=0,BackgroundColor3=C.BG3})
         else
-            btn.TextColor3 = Color3.fromRGB(110,110,155)
-            btn.Font = Enum.Font.Gotham
-            btn.BackgroundColor3 = Color3.fromRGB(22,22,34)
+            b.TextColor3=C.MUT
+            TW(b,0.12,{BackgroundTransparency=1})
         end
     end
-    TweenService:Create(ActiveIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {
-        Position = UDim2.new(0, 5, 0, 75 + (idx-1)*44)
-    }):Play()
-end
-
-for i, btn in ipairs(tabBtns) do
-    btn.MouseButton1Click:Connect(function() SwitchTab(i) end)
+    TW(NavInd,0.2,{Position=S(0,61+(idx-1)*46+5)})
 end
 SwitchTab(1)
 
--- ================================================
--- BUTTON LOGIC
--- ================================================
+-- ══════════════════════════════════════
+-- TOGGLE HELPER
+-- ══════════════════════════════════════
+local function SetTog(btn, on, col)
+    btn.Text = on and "ON" or "OFF"
+    btn.TextColor3 = on and col or C.MUT
+    local r,g,b = col.R*255*0.15, col.G*255*0.15, col.B*255*0.15
+    TW(btn,0.15,{BackgroundColor3 = on and Color3.fromRGB(r,g,b) or C.BG3})
+end
 
--- Decompile
-DecompBtn.MouseButton1Click:Connect(function()
-    DecompBtn.Text = "⏳  Decompiling..."
-    DecompBtn.BackgroundColor3 = Color3.fromRGB(50,50,180)
-    DecompStatus.Text = "Starting decompile..."
-    DecompStatus.TextColor3 = Color3.fromRGB(255,200,80)
+-- AFK
+local function DoAFK(...)
+    local on = ToggleAFK()
+    for _, t in ipairs({...}) do SetTog(t,on,C.GRN) end
+    AddNotif("Anti-AFK "..(on and "enabled" or "disabled"),C.GRN2,"🛡")
+end
+DashAFK.MouseButton1Click:Connect(function() DoAFK(DashAFK,U4AFK) end)
+U4AFK.MouseButton1Click:Connect(function() DoAFK(U4AFK,DashAFK) end)
 
-    TweenService:Create(ProgBar, TweenInfo.new(0.5), {Size = UDim2.new(0.3,0,1,0)}):Play()
-
-    task.spawn(function()
-        TweenService:Create(ProgBar, TweenInfo.new(8, Enum.EasingStyle.Linear), {Size = UDim2.new(0.85,0,1,0)}):Play()
-        RunMainScript()
-        TweenService:Create(ProgBar, TweenInfo.new(0.4), {Size = UDim2.new(1,0,1,0)}):Play()
-        task.wait(0.4)
-        DecompBtn.Text = "✅  Decompiled!"
-        DecompBtn.BackgroundColor3 = Color3.fromRGB(40,160,80)
-        DecompStatus.Text = "✅  Done! Check your executor workspace folder."
-        DecompStatus.TextColor3 = Color3.fromRGB(80,255,120)
-    end)
-end)
-
--- Map Loader
-MapBtn.MouseButton1Click:Connect(function()
-    MapBtn.Text = "⏳  Loading map..."
-    MapBtn.BackgroundColor3 = Color3.fromRGB(30,100,60)
-    MapProgBar.Size = UDim2.new(0,0,1,0)
-
-    task.spawn(function()
-        local steps = 11
-        local step = 0
-        LoadFullMap(function(msg)
-            step = step + 1
-            MapStatus.Text = msg
-            MapStatus.TextColor3 = Color3.fromRGB(200,200,100)
-            TweenService:Create(MapProgBar, TweenInfo.new(0.3), {
-                Size = UDim2.new(step/steps, 0, 1, 0)
-            }):Play()
-        end)
-        MapBtn.Text = "✅  Map Loaded!"
-        MapBtn.BackgroundColor3 = Color3.fromRGB(40,160,80)
-        MapStatus.TextColor3 = Color3.fromRGB(80,255,120)
-    end)
-end)
-
--- Anti-AFK toggle
-local afkOn = false
-AfkToggle.MouseButton1Click:Connect(function()
-    afkOn = ToggleAntiAFK()
-    if afkOn then
-        AfkToggle.Text = "ON"
-        AfkToggle.TextColor3 = Color3.fromRGB(80,255,120)
-        TweenService:Create(AfkToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30,80,50)}):Play()
-    else
-        AfkToggle.Text = "OFF"
-        AfkToggle.TextColor3 = Color3.fromRGB(100,100,140)
-        TweenService:Create(AfkToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35,35,55)}):Play()
-    end
-end)
-
--- FPS toggle
-local fpsOn = false
-FpsToggle.MouseButton1Click:Connect(function()
-    local ok = pcall(function() fpsOn = ToggleFPS() end)
+-- FPS
+local function DoFPS(...)
+    local ok, on = pcall(ToggleFPS)
     if not ok then
-        FpsToggle.Text = "N/A"
-        FpsToggle.TextColor3 = Color3.fromRGB(255,80,80)
+        for _, t in ipairs({...}) do t.Text="N/A" t.TextColor3=C.RED end
+        AddNotif("setfpscap not supported on this executor",C.RED,"❌")
         return
     end
-    if fpsOn then
-        FpsToggle.Text = "ON"
-        FpsToggle.TextColor3 = Color3.fromRGB(80,255,120)
-        TweenService:Create(FpsToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30,80,50)}):Play()
-    else
-        FpsToggle.Text = "OFF"
-        FpsToggle.TextColor3 = Color3.fromRGB(100,100,140)
-        TweenService:Create(FpsToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35,35,55)}):Play()
-    end
+    for _, t in ipairs({...}) do SetTog(t,on,C.CYN) end
+    AddNotif("FPS "..(on and "uncapped" or "locked to 60"),Color3.fromRGB(14,55,78),"⚡")
+end
+DashFPS.MouseButton1Click:Connect(function() DoFPS(DashFPS,U4FPS) end)
+U4FPS.MouseButton1Click:Connect(function() DoFPS(U4FPS,DashFPS) end)
+
+-- Quiet
+U4NOTI.MouseButton1Click:Connect(function()
+    quietMode = not quietMode
+    SetTog(U4NOTI,quietMode,C.YEL)
 end)
 
 -- Copy HWID
-CopyHWIDBtn.MouseButton1Click:Connect(function()
-    setclipboard(HWID)
-    CopyHWIDBtn.Text = "✅  Copied!"
-    task.delay(2, function()
-        CopyHWIDBtn.Text = "📋  Copy HWID to Clipboard"
+U4Cp.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard(HWID) end)
+    U4Cp.Text="✅  Copied!"
+    task.delay(2,function() U4Cp.Text="📋  Copy HWID to Clipboard" end)
+    AddNotif("HWID copied to clipboard",C.BLU3,"📋")
+end)
+
+-- Decompile
+local isDecomp = false
+D2Btn.MouseButton1Click:Connect(function()
+    if isDecomp then return end
+    isDecomp=true
+    D2Btn.Text="⏳  Decompiling..."
+    TW(D2Btn,0.1,{BackgroundColor3=C.BLU3})
+    D2Stat.TextColor3=C.YEL D2Stat.Text="Starting..."
+    D2PF.Size=S(0,4)
+    TS:Create(D2PF,TweenInfo.new(18,Enum.EasingStyle.Linear),{Size=P(0.88,0,1,0)}):Play()
+    task.spawn(function()
+        AddLog("Started: "..gameName, C.BLU)
+        local ok,folder = RunDecompiler(function(msg,prog)
+            D2Stat.Text=msg
+            pcall(AddLog,msg)
+            if prog and prog>0 then
+                TS:Create(D2PF,TweenInfo.new(0.4),{Size=P(prog,0,1,0)}):Play()
+            end
+        end)
+        TS:Create(D2PF,TweenInfo.new(0.5),{Size=P(1,0,1,0)}):Play()
+        task.wait(0.5)
+        if ok then
+            D2Btn.Text="✅  Done!"
+            TW(D2Btn,0.1,{BackgroundColor3=Color3.fromRGB(22,110,55)})
+            D2Stat.TextColor3=C.GRN D2Stat.Text="Saved! Check your executor workspace folder."
+            AddNotif("Decompile complete: "..gameName:sub(1,26),C.GRN2,"✅")
+            task.delay(6,function()
+                D2Btn.Text="⚙  Decompile  "..gameName:sub(1,30)
+                TW(D2Btn,0.15,{BackgroundColor3=C.BLU})
+            end)
+        else
+            D2Btn.Text="❌  Failed — Retry?"
+            TW(D2Btn,0.1,{BackgroundColor3=Color3.fromRGB(110,25,25)})
+            D2Stat.TextColor3=C.RED
+            AddNotif("Decompile failed — check log",C.RED,"❌")
+            task.delay(5,function()
+                D2Btn.Text="⚙  Decompile  "..gameName:sub(1,30)
+                TW(D2Btn,0.15,{BackgroundColor3=C.BLU})
+            end)
+        end
+        isDecomp=false
+    end)
+end)
+
+-- Map
+local isMap = false
+M3Btn.MouseButton1Click:Connect(function()
+    if isMap then return end
+    isMap=true M3Btn.Text="⏳  Loading..."
+    TW(M3Btn,0.1,{BackgroundColor3=C.GRN2}) M3PF.Size=S(0,4)
+    AddNotif("Map load started",C.GRN2,"🗺")
+    task.spawn(function()
+        LoadFullMap(function(msg,prog)
+            M3St.Text=msg M3St.TextColor3=C.YEL
+            if prog then TS:Create(M3PF,TweenInfo.new(0.3),{Size=P(prog,0,1,0)}):Play() end
+        end)
+        M3Btn.Text="✅  Map Loaded!"
+        TW(M3Btn,0.1,{BackgroundColor3=Color3.fromRGB(22,110,55)})
+        M3St.Text="Complete! Entire world loaded." M3St.TextColor3=C.GRN
+        AddNotif("Map fully loaded!",C.GRN2,"✅")
+        isMap=false
     end)
 end)
 
 -- Discord
-JoinBtn.MouseButton1Click:Connect(function()
+JBtn.MouseButton1Click:Connect(function()
     OpenDiscord()
-    JoinBtn.Text = "✅ Copied!"
-    task.delay(2, function() JoinBtn.Text = "Join Server →" end)
+    JBtn.Text="✅ Copied!"
+    AddNotif("Discord link copied to clipboard",C.DISC,"💬")
+    task.delay(2,function() JBtn.Text="Join →" end)
 end)
 
--- ================================================
--- KEY VERIFICATION FLOW
--- ================================================
-local function ShowMainUI()
-    TweenService:Create(KeyFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
-        Position = UDim2.new(0.5, -230, 1.5, 0),
-        BackgroundTransparency = 1
-    }):Play()
-    task.wait(0.3)
-    KeyFrame.Visible = false
-    MainFrame.Visible = true
-    MainFrame.Position = UDim2.new(0.5, -330, 1.5, 0)
-    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
-        Position = UDim2.new(0.5, -330, 0.5, -210)
-    }):Play()
+-- ══════════════════════════════════════
+-- KEY FLOW
+-- ══════════════════════════════════════
+local function ShowMain()
+    TW(KF,0.3,{Position=P(0.5,-230,1.6,0)})
+    task.wait(0.32)
+    KF.Visible=false
+    MW.Position=P(0.5,-450,1.7,0) MW.Visible=true
+    TW(MW,0.45,{Position=P(0.5,-450,0.5,-255)})
+    task.wait(0.55)
+    AddNotif("Logged in as "..username, C.BLU3,"⚡")
+    AddNotif("Target: "..gameName:sub(1,30), C.BLU3,"🎮")
+    AddNotif("discord.gg/kyzes — get free keys!", C.DISC,"💬")
 end
 
--- Dot animation for verifying
 local checking = false
 task.spawn(function()
-    local dots = 0
-    while true do
-        task.wait(0.4)
-        if checking then
-            dots = (dots % 3) + 1
-            SubmitBtn.Text = "Verifying" .. string.rep(".", dots)
-        end
+    local d = 0
+    while KBtn.Parent do
+        task.wait(0.32)
+        if checking then d=(d%3)+1 KBtn.Text="Verifying"..string.rep(".",d) end
     end
 end)
 
--- Check saved key on launch
-if isfile(SaveFile) then
-    local savedKey = readfile(SaveFile)
-    if savedKey and savedKey ~= "" then
-        KStatus.TextColor3 = Color3.fromRGB(80,255,120)
-        KStatus.Text = "⏳  Checking saved key..."
+if isfile and isfile(KEY_FILE) then
+    local saved = readfile(KEY_FILE)
+    if saved and #saved > 5 then
+        KMsg.TextColor3=C.GRN KMsg.Text="⏳  Checking saved key..."
         task.spawn(function()
-            local valid, msg = ValidateKey(savedKey)
-            if valid then
-                ShowMainUI()
+            local ok, msg = ValidateKey(saved)
+            if ok then ShowMain()
             else
-                writefile(SaveFile, "")
-                KStatus.TextColor3 = Color3.fromRGB(255,80,80)
-                KStatus.Text = "❌  Saved key expired. Enter a new one."
+                pcall(function() writefile(KEY_FILE,"") end)
+                KMsg.TextColor3=C.RED KMsg.Text="❌  Saved key expired — re-enter."
             end
         end)
     end
 end
 
-SubmitBtn.MouseButton1Click:Connect(function()
-    local key = KeyBox.Text
-    if key == "" then
-        KStatus.TextColor3 = Color3.fromRGB(255,200,80)
-        KStatus.Text = "⚠️  Please enter a key."
-        return
-    end
-
-    checking = true
-    SubmitBtn.BackgroundColor3 = Color3.fromRGB(50,50,180)
-    KStatus.Text = ""
-
+KBtn.MouseButton1Click:Connect(function()
+    local key = KBox.Text
+    if key=="" then KMsg.TextColor3=C.YEL KMsg.Text="⚠  Please enter your key." return end
+    checking=true TW(KBtn,0.1,{BackgroundColor3=C.BLU3}) KMsg.Text=""
     task.spawn(function()
-        local valid, msg = ValidateKey(key)
-        checking = false
-        SubmitBtn.Text = "🔓  Verify Key"
-        if valid then
-            writefile(SaveFile, key)
-            KStatus.TextColor3 = Color3.fromRGB(80,255,120)
-            KStatus.Text = "✅  Key valid!"
-            SubmitBtn.BackgroundColor3 = Color3.fromRGB(40,160,80)
-            task.wait(0.6)
-            ShowMainUI()
+        local ok, msg = ValidateKey(key)
+        checking=false KBtn.Text="🔓  Verify Key"
+        if ok then
+            pcall(function() writefile(KEY_FILE,key) end)
+            KMsg.TextColor3=C.GRN KMsg.Text="✅  Key verified!"
+            TW(KBtn,0.1,{BackgroundColor3=Color3.fromRGB(26,108,52)})
+            task.wait(0.7) ShowMain()
         else
-            SubmitBtn.BackgroundColor3 = Color3.fromRGB(70,70,230)
-            KStatus.TextColor3 = Color3.fromRGB(255,80,80)
-            KStatus.Text = "❌  " .. (msg or "Invalid key")
+            TW(KBtn,0.1,{BackgroundColor3=C.BLU})
+            KMsg.TextColor3=C.RED KMsg.Text="❌  "..(msg or "Invalid key")
         end
     end)
 end)
