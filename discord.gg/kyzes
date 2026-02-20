@@ -1,0 +1,1016 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+local APP_NAME = "decompiling script"
+local OWNER_ID = "Kwtjkb2nRJ"
+local VERSION = "1.0"
+local DISCORD = "discord.gg/kyzes"
+local SaveFile = "decompiling_key.txt"
+local HWIDFile = "decompiling_hwid.txt"
+
+-- ================================================
+-- UTILITIES
+-- ================================================
+local function GetHWID()
+    if isfile(HWIDFile) then return readfile(HWIDFile) end
+    local hwid = ""
+    local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    for i = 1, 32 do
+        local r = math.random(1, #chars)
+        hwid = hwid .. chars:sub(r, r)
+    end
+    hwid = hwid:sub(1,8).."-"..hwid:sub(9,12).."-"..hwid:sub(13,16).."-"..hwid:sub(17,20).."-"..hwid:sub(21,32)
+    writefile(HWIDFile, hwid)
+    return hwid
+end
+
+local HWID = GetHWID()
+
+local gameName = "Unknown Game"
+pcall(function()
+    gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+end)
+
+local function RunMainScript()
+    local synsaveinstance = loadstring(game:HttpGet("https://raw.githubusercontent.com/verysigmapro/UniversalSynSaveInstance-With-Save-Terrain/refs/heads/main/saveinstance.luau", true), "saveinstance")()
+    synsaveinstance({})
+end
+
+local function InitSession()
+    local url = "https://keyauth.win/api/1.2/?type=init"
+        .. "&ver=" .. VERSION
+        .. "&name=" .. HttpService:UrlEncode(APP_NAME)
+        .. "&ownerid=" .. OWNER_ID
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if not ok then return nil end
+    local dok, data = pcall(HttpService.JSONDecode, HttpService, res)
+    if not dok then return nil end
+    return data.success and data.sessionid or nil
+end
+
+local function ValidateKey(key)
+    local sessionid = InitSession()
+    if not sessionid then return false, "Failed to connect" end
+    local url = "https://keyauth.win/api/1.2/?type=license"
+        .. "&key=" .. HttpService:UrlEncode(key)
+        .. "&sessionid=" .. sessionid
+        .. "&name=" .. HttpService:UrlEncode(APP_NAME)
+        .. "&ownerid=" .. OWNER_ID
+        .. "&hwid=" .. HttpService:UrlEncode(HWID)
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if not ok then return false, "Connection error" end
+    local dok, data = pcall(HttpService.JSONDecode, HttpService, res)
+    if not dok then return false, "Parse error" end
+    return data.success == true, tostring(data.message)
+end
+
+-- ================================================
+-- MAP LOADER
+-- ================================================
+local function LoadFullMap(statusCb)
+    statusCb("Disabling streaming...")
+    pcall(function() workspace.StreamingEnabled = false end)
+    task.wait(0.5)
+
+    statusCb("Requesting chunks around origin...")
+    local points = {
+        Vector3.new(0,0,0), Vector3.new(500,0,500), Vector3.new(-500,0,500),
+        Vector3.new(500,0,-500), Vector3.new(-500,0,-500), Vector3.new(1000,0,0),
+        Vector3.new(-1000,0,0), Vector3.new(0,0,1000), Vector3.new(0,0,-1000),
+        Vector3.new(2000,0,2000), Vector3.new(-2000,0,-2000)
+    }
+    for i, pt in ipairs(points) do
+        pcall(function() LocalPlayer:RequestStreamAroundAsync(pt, 2) end)
+        statusCb("Loading chunks... (" .. i .. "/" .. #points .. ")")
+        task.wait(0.3)
+    end
+
+    statusCb("Moving camera to scan world...")
+    local cam = workspace.CurrentCamera
+    local oldCFrame = cam.CFrame
+    local oldType = cam.CameraType
+    cam.CameraType = Enum.CameraType.Scriptable
+    for _, pt in ipairs(points) do
+        cam.CFrame = CFrame.new(pt + Vector3.new(0, 200, 0), pt)
+        task.wait(0.15)
+    end
+    cam.CameraType = oldType
+    cam.CFrame = oldCFrame
+
+    statusCb("✅ Map fully loaded!")
+end
+
+-- ================================================
+-- ANTI-AFK
+-- ================================================
+local afkConnection = nil
+local afkEnabled = false
+local function ToggleAntiAFK()
+    afkEnabled = not afkEnabled
+    if afkEnabled then
+        afkConnection = RunService.Heartbeat:Connect(function()
+            pcall(function()
+                LocalPlayer:Move(Vector3.new(0, 0, 0), false)
+            end)
+        end)
+        local vrs = LocalPlayer:FindFirstChild("PlayerScripts")
+        if vrs then
+            for _, v in ipairs(vrs:GetDescendants()) do
+                if v.Name == "AFK" then v:Destroy() end
+            end
+        end
+    else
+        if afkConnection then afkConnection:Disconnect() end
+    end
+    return afkEnabled
+end
+
+-- ================================================
+-- FPS UNLOCKER
+-- ================================================
+local fpsUnlocked = false
+local function ToggleFPS()
+    fpsUnlocked = not fpsUnlocked
+    if fpsUnlocked then
+        setfpscap(0)
+    else
+        setfpscap(60)
+    end
+    return fpsUnlocked
+end
+
+-- ================================================
+-- DISCORD LINK
+-- ================================================
+local function OpenDiscord()
+    local url = "https://" .. DISCORD
+    pcall(function()
+        if syn and syn.open_url then syn.open_url(url) return end
+    end)
+    pcall(function()
+        if openurl then openurl(url) return end
+    end)
+    setclipboard(url)
+end
+
+-- ================================================
+-- GUI BUILDER HELPERS
+-- ================================================
+local function MakeCorner(parent, radius)
+    local c = Instance.new("UICorner", parent)
+    c.CornerRadius = UDim.new(0, radius or 8)
+    return c
+end
+
+local function MakeStroke(parent, color, thickness)
+    local s = Instance.new("UIStroke", parent)
+    s.Color = color or Color3.fromRGB(80,80,255)
+    s.Thickness = thickness or 1.5
+    return s
+end
+
+local function MakeLabel(parent, props)
+    local l = Instance.new("TextLabel")
+    l.BackgroundTransparency = 1
+    l.Font = props.Font or Enum.Font.Gotham
+    l.TextColor3 = props.Color or Color3.fromRGB(255,255,255)
+    l.TextSize = props.Size or 14
+    l.Text = props.Text or ""
+    l.Size = props.FrameSize or UDim2.new(1,0,0,24)
+    l.Position = props.Pos or UDim2.new(0,0,0,0)
+    l.TextXAlignment = props.Align or Enum.TextXAlignment.Center
+    l.Parent = parent
+    return l
+end
+
+local function MakeButton(parent, props)
+    local b = Instance.new("TextButton")
+    b.BackgroundColor3 = props.BG or Color3.fromRGB(70,70,230)
+    b.BorderSizePixel = 0
+    b.TextColor3 = props.Color or Color3.fromRGB(255,255,255)
+    b.Font = props.Font or Enum.Font.GothamBold
+    b.TextSize = props.Size or 14
+    b.Text = props.Text or "Button"
+    b.Size = props.FrameSize or UDim2.new(0,200,0,42)
+    b.Position = props.Pos or UDim2.new(0.5,-100,0,0)
+    b.Parent = parent
+    MakeCorner(b, 8)
+
+    local normalBG = props.BG or Color3.fromRGB(70,70,230)
+    local hoverBG = props.HoverBG or Color3.fromRGB(100,100,255)
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = hoverBG}):Play()
+    end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.15), {BackgroundColor3 = normalBG}):Play()
+    end)
+    return b
+end
+
+-- ================================================
+-- RAINBOW STROKE ANIMATION
+-- ================================================
+local function AnimateStroke(stroke)
+    task.spawn(function()
+        local hue = 0
+        while stroke and stroke.Parent do
+            hue = (hue + 0.4) % 360
+            stroke.Color = Color3.fromHSV(hue/360, 0.85, 1)
+            task.wait(0.04)
+        end
+    end)
+end
+
+-- ================================================
+-- SCREEN GUI
+-- ================================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- ================================================
+-- KEY VERIFICATION UI
+-- ================================================
+local KeyFrame = Instance.new("Frame")
+KeyFrame.Size = UDim2.new(0, 460, 0, 280)
+KeyFrame.Position = UDim2.new(0.5, -230, 0.5, -140)
+KeyFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 17)
+KeyFrame.BorderSizePixel = 0
+KeyFrame.Parent = ScreenGui
+MakeCorner(KeyFrame, 16)
+AnimateStroke(MakeStroke(KeyFrame))
+
+-- Top bar
+local KTopBar = Instance.new("Frame")
+KTopBar.Size = UDim2.new(1, 0, 0, 50)
+KTopBar.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
+KTopBar.BorderSizePixel = 0
+KTopBar.Parent = KeyFrame
+MakeCorner(KTopBar, 16)
+Instance.new("Frame", KTopBar).Size = UDim2.new(1,0,0,10)
+local _kfix = KTopBar:FindFirstChildOfClass("Frame")
+_kfix.Position = UDim2.new(0,0,1,-10)
+_kfix.BackgroundColor3 = Color3.fromRGB(18,18,28)
+_kfix.BorderSizePixel = 0
+
+-- Logo dot
+local LogoDot = Instance.new("Frame")
+LogoDot.Size = UDim2.new(0, 10, 0, 10)
+LogoDot.Position = UDim2.new(0, 16, 0.5, -5)
+LogoDot.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+LogoDot.BorderSizePixel = 0
+LogoDot.Parent = KTopBar
+MakeCorner(LogoDot, 5)
+task.spawn(function()
+    local hue = 0
+    while LogoDot.Parent do
+        hue = (hue + 0.6) % 360
+        LogoDot.BackgroundColor3 = Color3.fromHSV(hue/360, 0.9, 1)
+        task.wait(0.04)
+    end
+end)
+
+MakeLabel(KTopBar, {
+    Text = "decompiling script  ·  v" .. VERSION,
+    Font = Enum.Font.GothamBold,
+    Size = 15,
+    Color = Color3.fromRGB(240,240,255),
+    FrameSize = UDim2.new(1,-40,1,0),
+    Pos = UDim2.new(0,32,0,0),
+    Align = Enum.TextXAlignment.Left
+})
+
+MakeLabel(KeyFrame, {
+    Text = "🔐  Enter your license key",
+    Font = Enum.Font.GothamBold,
+    Size = 16,
+    Color = Color3.fromRGB(220,220,255),
+    FrameSize = UDim2.new(1,-30,0,22),
+    Pos = UDim2.new(0,15,0,62),
+    Align = Enum.TextXAlignment.Left
+})
+
+MakeLabel(KeyFrame, {
+    Text = "Your key is saved after first use — you won't need to re-enter it",
+    Size = 12,
+    Color = Color3.fromRGB(100,100,140),
+    FrameSize = UDim2.new(1,-30,0,18),
+    Pos = UDim2.new(0,15,0,85),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- HWID label
+MakeLabel(KeyFrame, {
+    Text = "🖥️  HWID: " .. HWID:sub(1,20) .. "...",
+    Size = 11,
+    Color = Color3.fromRGB(65,65,100),
+    FrameSize = UDim2.new(1,-30,0,16),
+    Pos = UDim2.new(0,15,0,105),
+    Align = Enum.TextXAlignment.Left
+})
+
+local KeyBox = Instance.new("TextBox")
+KeyBox.Size = UDim2.new(0, 400, 0, 46)
+KeyBox.Position = UDim2.new(0.5, -200, 0, 130)
+KeyBox.PlaceholderText = "KEYAUTH-XXXX-XXXX-XXXX-XXXX"
+KeyBox.Text = ""
+KeyBox.TextColor3 = Color3.fromRGB(255,255,255)
+KeyBox.PlaceholderColor3 = Color3.fromRGB(65,65,100)
+KeyBox.BackgroundColor3 = Color3.fromRGB(18,18,28)
+KeyBox.BorderSizePixel = 0
+KeyBox.TextSize = 13
+KeyBox.Font = Enum.Font.Gotham
+KeyBox.Parent = KeyFrame
+MakeCorner(KeyBox, 8)
+MakeStroke(KeyBox, Color3.fromRGB(45,45,80), 1)
+
+KeyBox.Focused:Connect(function()
+    TweenService:Create(KeyBox:FindFirstChildOfClass("UIStroke"), TweenInfo.new(0.2), {Color = Color3.fromRGB(100,100,255)}):Play()
+end)
+KeyBox.FocusLost:Connect(function()
+    TweenService:Create(KeyBox:FindFirstChildOfClass("UIStroke"), TweenInfo.new(0.2), {Color = Color3.fromRGB(45,45,80)}):Play()
+end)
+
+local SubmitBtn = MakeButton(KeyFrame, {
+    Text = "🔓  Verify Key",
+    BG = Color3.fromRGB(70,70,230),
+    HoverBG = Color3.fromRGB(100,100,255),
+    FrameSize = UDim2.new(0,400,0,44),
+    Pos = UDim2.new(0.5,-200,0,188)
+})
+
+local KStatus = MakeLabel(KeyFrame, {
+    Text = "",
+    Size = 12,
+    Color = Color3.fromRGB(255,80,80),
+    FrameSize = UDim2.new(1,0,0,22),
+    Pos = UDim2.new(0,0,0,244)
+})
+
+-- ================================================
+-- MAIN UI (after key verified)
+-- ================================================
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 660, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -330, 0.5, -210)
+MainFrame.BackgroundColor3 = Color3.fromRGB(11, 11, 17)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+MakeCorner(MainFrame, 16)
+AnimateStroke(MakeStroke(MainFrame))
+
+-- Sidebar
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 160, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(15, 15, 23)
+Sidebar.BorderSizePixel = 0
+Sidebar.Parent = MainFrame
+MakeCorner(Sidebar, 16)
+
+-- Fix sidebar right edge corners
+local SidebarFix = Instance.new("Frame")
+SidebarFix.Size = UDim2.new(0, 20, 1, 0)
+SidebarFix.Position = UDim2.new(1, -20, 0, 0)
+SidebarFix.BackgroundColor3 = Color3.fromRGB(15,15,23)
+SidebarFix.BorderSizePixel = 0
+SidebarFix.Parent = Sidebar
+
+-- Sidebar title
+local SideTitle = Instance.new("Frame")
+SideTitle.Size = UDim2.new(1,0,0,60)
+SideTitle.BackgroundTransparency = 1
+SideTitle.Parent = Sidebar
+
+local SideDot = Instance.new("Frame")
+SideDot.Size = UDim2.new(0,8,0,8)
+SideDot.Position = UDim2.new(0,14,0.5,-4)
+SideDot.BackgroundColor3 = Color3.fromRGB(100,100,255)
+SideDot.BorderSizePixel = 0
+SideDot.Parent = SideTitle
+MakeCorner(SideDot, 4)
+task.spawn(function()
+    local hue = 180
+    while SideDot.Parent do
+        hue = (hue + 0.6) % 360
+        SideDot.BackgroundColor3 = Color3.fromHSV(hue/360, 0.9, 1)
+        task.wait(0.04)
+    end
+end)
+
+MakeLabel(SideTitle, {
+    Text = "zyler hub",
+    Font = Enum.Font.GothamBold,
+    Size = 15,
+    Color = Color3.fromRGB(220,220,255),
+    FrameSize = UDim2.new(1,-30,0,20),
+    Pos = UDim2.new(0,26,0,12),
+    Align = Enum.TextXAlignment.Left
+})
+MakeLabel(SideTitle, {
+    Text = "v" .. VERSION,
+    Size = 11,
+    Color = Color3.fromRGB(65,65,100),
+    FrameSize = UDim2.new(1,-30,0,16),
+    Pos = UDim2.new(0,26,0,32),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- Divider
+local Div1 = Instance.new("Frame")
+Div1.Size = UDim2.new(1,-20,0,1)
+Div1.Position = UDim2.new(0,10,0,60)
+Div1.BackgroundColor3 = Color3.fromRGB(30,30,50)
+Div1.BorderSizePixel = 0
+Div1.Parent = Sidebar
+
+-- Tab buttons
+local tabs = {"⚙️  Decompile", "🗺️  Map Loader", "🛡️  Utilities", "💬  Discord"}
+local tabBtns = {}
+local tabFrames = {}
+
+for i, name in ipairs(tabs) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,-16,0,38)
+    btn.Position = UDim2.new(0,8,0,68+(i-1)*44)
+    btn.BackgroundColor3 = Color3.fromRGB(22,22,34)
+    btn.BorderSizePixel = 0
+    btn.TextColor3 = Color3.fromRGB(130,130,170)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 13
+    btn.Text = name
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    local p = Instance.new("UIPadding", btn)
+    p.PaddingLeft = UDim.new(0, 10)
+    btn.Parent = Sidebar
+    MakeCorner(btn, 8)
+    tabBtns[i] = btn
+end
+
+-- Active tab indicator
+local ActiveIndicator = Instance.new("Frame")
+ActiveIndicator.Size = UDim2.new(0,3,0,24)
+ActiveIndicator.Position = UDim2.new(0,5,0,75)
+ActiveIndicator.BackgroundColor3 = Color3.fromRGB(100,100,255)
+ActiveIndicator.BorderSizePixel = 0
+ActiveIndicator.Parent = Sidebar
+MakeCorner(ActiveIndicator, 2)
+
+-- Content area
+local ContentArea = Instance.new("Frame")
+ContentArea.Size = UDim2.new(1,-170,1,-10)
+ContentArea.Position = UDim2.new(0,165,0,5)
+ContentArea.BackgroundTransparency = 1
+ContentArea.Parent = MainFrame
+
+-- ================================================
+-- TAB 1: DECOMPILE
+-- ================================================
+local T1 = Instance.new("Frame")
+T1.Size = UDim2.new(1,0,1,0)
+T1.BackgroundTransparency = 1
+T1.Parent = ContentArea
+
+MakeLabel(T1, {
+    Text = "Decompile",
+    Font = Enum.Font.GothamBold,
+    Size = 20,
+    Color = Color3.fromRGB(240,240,255),
+    FrameSize = UDim2.new(1,-10,0,28),
+    Pos = UDim2.new(0,5,0,12),
+    Align = Enum.TextXAlignment.Left
+})
+
+MakeLabel(T1, {
+    Text = "Saves the entire game to your executor workspace folder.",
+    Size = 12,
+    Color = Color3.fromRGB(100,100,140),
+    FrameSize = UDim2.new(1,-10,0,18),
+    Pos = UDim2.new(0,5,0,42),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- Game info card
+local GameCard = Instance.new("Frame")
+GameCard.Size = UDim2.new(1,-10,0,64)
+GameCard.Position = UDim2.new(0,5,0,70)
+GameCard.BackgroundColor3 = Color3.fromRGB(18,18,28)
+GameCard.BorderSizePixel = 0
+GameCard.Parent = T1
+MakeCorner(GameCard, 10)
+MakeStroke(GameCard, Color3.fromRGB(35,35,60), 1)
+
+MakeLabel(GameCard, {
+    Text = "🎮  Target Game",
+    Font = Enum.Font.GothamBold,
+    Size = 12,
+    Color = Color3.fromRGB(100,100,150),
+    FrameSize = UDim2.new(1,-15,0,20),
+    Pos = UDim2.new(0,12,0,8),
+    Align = Enum.TextXAlignment.Left
+})
+MakeLabel(GameCard, {
+    Text = gameName,
+    Font = Enum.Font.GothamBold,
+    Size = 15,
+    Color = Color3.fromRGB(220,220,255),
+    FrameSize = UDim2.new(1,-15,0,24),
+    Pos = UDim2.new(0,12,0,30),
+    Align = Enum.TextXAlignment.Left
+})
+
+local DecompBtn = MakeButton(T1, {
+    Text = "⚙️  Decompile  " .. gameName,
+    BG = Color3.fromRGB(70,70,230),
+    HoverBG = Color3.fromRGB(100,100,255),
+    FrameSize = UDim2.new(1,-10,0,48),
+    Pos = UDim2.new(0,5,0,148)
+})
+MakeStroke(DecompBtn, Color3.fromRGB(120,120,255), 1)
+
+local DecompStatus = MakeLabel(T1, {
+    Text = "Ready to decompile.",
+    Size = 12,
+    Color = Color3.fromRGB(80,255,120),
+    FrameSize = UDim2.new(1,-10,0,20),
+    Pos = UDim2.new(0,5,0,208),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- Progress bar background
+local ProgBG = Instance.new("Frame")
+ProgBG.Size = UDim2.new(1,-10,0,6)
+ProgBG.Position = UDim2.new(0,5,0,232)
+ProgBG.BackgroundColor3 = Color3.fromRGB(25,25,40)
+ProgBG.BorderSizePixel = 0
+ProgBG.Parent = T1
+MakeCorner(ProgBG, 3)
+
+local ProgBar = Instance.new("Frame")
+ProgBar.Size = UDim2.new(0,0,1,0)
+ProgBar.BackgroundColor3 = Color3.fromRGB(80,80,255)
+ProgBar.BorderSizePixel = 0
+ProgBar.Parent = ProgBG
+MakeCorner(ProgBar, 3)
+
+-- ================================================
+-- TAB 2: MAP LOADER
+-- ================================================
+local T2 = Instance.new("Frame")
+T2.Size = UDim2.new(1,0,1,0)
+T2.BackgroundTransparency = 1
+T2.Visible = false
+T2.Parent = ContentArea
+
+MakeLabel(T2, {
+    Text = "Map Loader",
+    Font = Enum.Font.GothamBold,
+    Size = 20,
+    Color = Color3.fromRGB(240,240,255),
+    FrameSize = UDim2.new(1,-10,0,28),
+    Pos = UDim2.new(0,5,0,12),
+    Align = Enum.TextXAlignment.Left
+})
+MakeLabel(T2, {
+    Text = "Forces StreamingEnabled games to load the entire map at once.",
+    Size = 12,
+    Color = Color3.fromRGB(100,100,140),
+    FrameSize = UDim2.new(1,-10,0,18),
+    Pos = UDim2.new(0,5,0,42),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- Info card
+local MapInfoCard = Instance.new("Frame")
+MapInfoCard.Size = UDim2.new(1,-10,0,80)
+MapInfoCard.Position = UDim2.new(0,5,0,70)
+MapInfoCard.BackgroundColor3 = Color3.fromRGB(18,18,28)
+MapInfoCard.BorderSizePixel = 0
+MapInfoCard.Parent = T2
+MakeCorner(MapInfoCard, 10)
+MakeStroke(MapInfoCard, Color3.fromRGB(35,35,60), 1)
+
+MakeLabel(MapInfoCard, {Text = "⚠️  How it works:", Font = Enum.Font.GothamBold, Size = 13, Color = Color3.fromRGB(255,200,80), FrameSize = UDim2.new(1,-15,0,20), Pos = UDim2.new(0,12,0,8), Align = Enum.TextXAlignment.Left})
+MakeLabel(MapInfoCard, {Text = "1. Disables StreamingEnabled on client", Size = 12, Color = Color3.fromRGB(130,130,170), FrameSize = UDim2.new(1,-15,0,16), Pos = UDim2.new(0,12,0,28), Align = Enum.TextXAlignment.Left})
+MakeLabel(MapInfoCard, {Text = "2. Requests all map chunks from server", Size = 12, Color = Color3.fromRGB(130,130,170), FrameSize = UDim2.new(1,-15,0,16), Pos = UDim2.new(0,12,0,44), Align = Enum.TextXAlignment.Left})
+MakeLabel(MapInfoCard, {Text = "3. Scans map with camera to trigger loading", Size = 12, Color = Color3.fromRGB(130,130,170), FrameSize = UDim2.new(1,-15,0,16), Pos = UDim2.new(0,12,0,60), Align = Enum.TextXAlignment.Left})
+
+local MapBtn = MakeButton(T2, {
+    Text = "🗺️  Load Full Map",
+    BG = Color3.fromRGB(40,140,80),
+    HoverBG = Color3.fromRGB(60,180,100),
+    FrameSize = UDim2.new(1,-10,0,48),
+    Pos = UDim2.new(0,5,0,162)
+})
+
+local MapStatus = MakeLabel(T2, {
+    Text = "Press the button to start loading.",
+    Size = 12,
+    Color = Color3.fromRGB(100,100,140),
+    FrameSize = UDim2.new(1,-10,0,20),
+    Pos = UDim2.new(0,5,0,220),
+    Align = Enum.TextXAlignment.Left
+})
+
+local MapProgBG = Instance.new("Frame")
+MapProgBG.Size = UDim2.new(1,-10,0,6)
+MapProgBG.Position = UDim2.new(0,5,0,244)
+MapProgBG.BackgroundColor3 = Color3.fromRGB(25,25,40)
+MapProgBG.BorderSizePixel = 0
+MapProgBG.Parent = T2
+MakeCorner(MapProgBG, 3)
+
+local MapProgBar = Instance.new("Frame")
+MapProgBar.Size = UDim2.new(0,0,1,0)
+MapProgBar.BackgroundColor3 = Color3.fromRGB(60,200,100)
+MapProgBar.BorderSizePixel = 0
+MapProgBar.Parent = MapProgBG
+MakeCorner(MapProgBar, 3)
+
+-- ================================================
+-- TAB 3: UTILITIES
+-- ================================================
+local T3 = Instance.new("Frame")
+T3.Size = UDim2.new(1,0,1,0)
+T3.BackgroundTransparency = 1
+T3.Visible = false
+T3.Parent = ContentArea
+
+MakeLabel(T3, {
+    Text = "Utilities",
+    Font = Enum.Font.GothamBold,
+    Size = 20,
+    Color = Color3.fromRGB(240,240,255),
+    FrameSize = UDim2.new(1,-10,0,28),
+    Pos = UDim2.new(0,5,0,12),
+    Align = Enum.TextXAlignment.Left
+})
+
+local function MakeToggleCard(parent, yPos, icon, title, desc)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1,-10,0,64)
+    card.Position = UDim2.new(0,5,0,yPos)
+    card.BackgroundColor3 = Color3.fromRGB(18,18,28)
+    card.BorderSizePixel = 0
+    card.Parent = parent
+    MakeCorner(card, 10)
+    MakeStroke(card, Color3.fromRGB(35,35,60), 1)
+
+    MakeLabel(card, {Text = icon .. "  " .. title, Font = Enum.Font.GothamBold, Size = 14, Color = Color3.fromRGB(210,210,255), FrameSize = UDim2.new(1,-90,0,20), Pos = UDim2.new(0,12,0,8), Align = Enum.TextXAlignment.Left})
+    MakeLabel(card, {Text = desc, Size = 11, Color = Color3.fromRGB(90,90,130), FrameSize = UDim2.new(1,-90,0,16), Pos = UDim2.new(0,12,0,32), Align = Enum.TextXAlignment.Left})
+
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0,52,0,28)
+    toggle.Position = UDim2.new(1,-64,0.5,-14)
+    toggle.BackgroundColor3 = Color3.fromRGB(35,35,55)
+    toggle.BorderSizePixel = 0
+    toggle.Text = "OFF"
+    toggle.TextColor3 = Color3.fromRGB(100,100,140)
+    toggle.TextSize = 11
+    toggle.Font = Enum.Font.GothamBold
+    toggle.Parent = card
+    MakeCorner(toggle, 14)
+
+    return card, toggle
+end
+
+local _, AfkToggle = MakeToggleCard(T3, 50, "🛡️", "Anti-AFK", "Prevents Roblox from disconnecting you")
+local _, FpsToggle = MakeToggleCard(T3, 126, "⚡", "FPS Unlocker", "Removes the 60fps cap (requires setfpscap)")
+
+local CopyHWIDBtn = MakeButton(T3, {
+    Text = "📋  Copy HWID to Clipboard",
+    BG = Color3.fromRGB(40,40,70),
+    HoverBG = Color3.fromRGB(60,60,100),
+    FrameSize = UDim2.new(1,-10,0,44),
+    Pos = UDim2.new(0,5,0,210)
+})
+MakeStroke(CopyHWIDBtn, Color3.fromRGB(60,60,100), 1)
+
+MakeLabel(T3, {
+    Text = "🖥️  HWID: " .. HWID,
+    Size = 10,
+    Color = Color3.fromRGB(55,55,85),
+    FrameSize = UDim2.new(1,-10,0,16),
+    Pos = UDim2.new(0,5,0,260),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- ================================================
+-- TAB 4: DISCORD
+-- ================================================
+local T4 = Instance.new("Frame")
+T4.Size = UDim2.new(1,0,1,0)
+T4.BackgroundTransparency = 1
+T4.Visible = false
+T4.Parent = ContentArea
+
+MakeLabel(T4, {
+    Text = "Join our Discord",
+    Font = Enum.Font.GothamBold,
+    Size = 20,
+    Color = Color3.fromRGB(240,240,255),
+    FrameSize = UDim2.new(1,-10,0,28),
+    Pos = UDim2.new(0,5,0,12),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- Discord card
+local DiscordCard = Instance.new("Frame")
+DiscordCard.Size = UDim2.new(1,-10,0,170)
+DiscordCard.Position = UDim2.new(0,5,0,52)
+DiscordCard.BackgroundColor3 = Color3.fromRGB(88,101,242)
+DiscordCard.BorderSizePixel = 0
+DiscordCard.Parent = T4
+MakeCorner(DiscordCard, 14)
+
+-- Glow effect on card
+local CardGlow = Instance.new("UIStroke", DiscordCard)
+CardGlow.Color = Color3.fromRGB(120,130,255)
+CardGlow.Thickness = 1.5
+
+MakeLabel(DiscordCard, {
+    Text = "discord",
+    Font = Enum.Font.GothamBold,
+    Size = 32,
+    Color = Color3.fromRGB(255,255,255),
+    FrameSize = UDim2.new(1,-20,0,44),
+    Pos = UDim2.new(0,15,0,14),
+    Align = Enum.TextXAlignment.Left
+})
+
+MakeLabel(DiscordCard, {
+    Text = "Get updates, keys, and support\nfrom the zyler hub community!",
+    Size = 13,
+    Color = Color3.fromRGB(200,205,255),
+    FrameSize = UDim2.new(1,-20,0,46),
+    Pos = UDim2.new(0,15,0,58),
+    Align = Enum.TextXAlignment.Left
+})
+
+MakeLabel(DiscordCard, {
+    Text = "🔗  " .. DISCORD,
+    Font = Enum.Font.GothamBold,
+    Size = 14,
+    Color = Color3.fromRGB(255,255,255),
+    FrameSize = UDim2.new(1,-20,0,22),
+    Pos = UDim2.new(0,15,0,108),
+    Align = Enum.TextXAlignment.Left
+})
+
+local JoinBtn = MakeButton(DiscordCard, {
+    Text = "Join Server →",
+    BG = Color3.fromRGB(255,255,255),
+    HoverBG = Color3.fromRGB(220,220,255),
+    FrameSize = UDim2.new(0,140,0,36),
+    Pos = UDim2.new(1,-150,1,-46)
+})
+JoinBtn.TextColor3 = Color3.fromRGB(88,101,242)
+JoinBtn.Font = Enum.Font.GothamBold
+JoinBtn.TextSize = 13
+
+MakeLabel(T4, {
+    Text = "⚠️  Clicking will copy the link to your clipboard",
+    Size = 11,
+    Color = Color3.fromRGB(70,70,110),
+    FrameSize = UDim2.new(1,-10,0,18),
+    Pos = UDim2.new(0,5,0,230),
+    Align = Enum.TextXAlignment.Left
+})
+
+-- What's in the server
+MakeLabel(T4, {
+    Text = "What's in the server:",
+    Font = Enum.Font.GothamBold,
+    Size = 13,
+    Color = Color3.fromRGB(130,130,170),
+    FrameSize = UDim2.new(1,-10,0,20),
+    Pos = UDim2.new(0,5,0,256),
+    Align = Enum.TextXAlignment.Left
+})
+
+local perks = {"🔑  Free keys & giveaways", "🚀  Script updates & announcements", "💬  Community & support"}
+for i, perk in ipairs(perks) do
+    MakeLabel(T4, {
+        Text = perk,
+        Size = 12,
+        Color = Color3.fromRGB(100,100,145),
+        FrameSize = UDim2.new(1,-10,0,18),
+        Pos = UDim2.new(0,15,0,274+(i-1)*20),
+        Align = Enum.TextXAlignment.Left
+    })
+end
+
+-- ================================================
+-- TAB SWITCHING LOGIC
+-- ================================================
+local allTabs = {T1, T2, T3, T4}
+local currentTab = 1
+
+local function SwitchTab(idx)
+    currentTab = idx
+    for i, frame in ipairs(allTabs) do
+        frame.Visible = (i == idx)
+    end
+    for i, btn in ipairs(tabBtns) do
+        if i == idx then
+            btn.TextColor3 = Color3.fromRGB(220,220,255)
+            btn.Font = Enum.Font.GothamBold
+            btn.BackgroundColor3 = Color3.fromRGB(30,30,48)
+        else
+            btn.TextColor3 = Color3.fromRGB(110,110,155)
+            btn.Font = Enum.Font.Gotham
+            btn.BackgroundColor3 = Color3.fromRGB(22,22,34)
+        end
+    end
+    TweenService:Create(ActiveIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {
+        Position = UDim2.new(0, 5, 0, 75 + (idx-1)*44)
+    }):Play()
+end
+
+for i, btn in ipairs(tabBtns) do
+    btn.MouseButton1Click:Connect(function() SwitchTab(i) end)
+end
+SwitchTab(1)
+
+-- ================================================
+-- BUTTON LOGIC
+-- ================================================
+
+-- Decompile
+DecompBtn.MouseButton1Click:Connect(function()
+    DecompBtn.Text = "⏳  Decompiling..."
+    DecompBtn.BackgroundColor3 = Color3.fromRGB(50,50,180)
+    DecompStatus.Text = "Starting decompile..."
+    DecompStatus.TextColor3 = Color3.fromRGB(255,200,80)
+
+    TweenService:Create(ProgBar, TweenInfo.new(0.5), {Size = UDim2.new(0.3,0,1,0)}):Play()
+
+    task.spawn(function()
+        TweenService:Create(ProgBar, TweenInfo.new(8, Enum.EasingStyle.Linear), {Size = UDim2.new(0.85,0,1,0)}):Play()
+        RunMainScript()
+        TweenService:Create(ProgBar, TweenInfo.new(0.4), {Size = UDim2.new(1,0,1,0)}):Play()
+        task.wait(0.4)
+        DecompBtn.Text = "✅  Decompiled!"
+        DecompBtn.BackgroundColor3 = Color3.fromRGB(40,160,80)
+        DecompStatus.Text = "✅  Done! Check your executor workspace folder."
+        DecompStatus.TextColor3 = Color3.fromRGB(80,255,120)
+    end)
+end)
+
+-- Map Loader
+MapBtn.MouseButton1Click:Connect(function()
+    MapBtn.Text = "⏳  Loading map..."
+    MapBtn.BackgroundColor3 = Color3.fromRGB(30,100,60)
+    MapProgBar.Size = UDim2.new(0,0,1,0)
+
+    task.spawn(function()
+        local steps = 11
+        local step = 0
+        LoadFullMap(function(msg)
+            step = step + 1
+            MapStatus.Text = msg
+            MapStatus.TextColor3 = Color3.fromRGB(200,200,100)
+            TweenService:Create(MapProgBar, TweenInfo.new(0.3), {
+                Size = UDim2.new(step/steps, 0, 1, 0)
+            }):Play()
+        end)
+        MapBtn.Text = "✅  Map Loaded!"
+        MapBtn.BackgroundColor3 = Color3.fromRGB(40,160,80)
+        MapStatus.TextColor3 = Color3.fromRGB(80,255,120)
+    end)
+end)
+
+-- Anti-AFK toggle
+local afkOn = false
+AfkToggle.MouseButton1Click:Connect(function()
+    afkOn = ToggleAntiAFK()
+    if afkOn then
+        AfkToggle.Text = "ON"
+        AfkToggle.TextColor3 = Color3.fromRGB(80,255,120)
+        TweenService:Create(AfkToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30,80,50)}):Play()
+    else
+        AfkToggle.Text = "OFF"
+        AfkToggle.TextColor3 = Color3.fromRGB(100,100,140)
+        TweenService:Create(AfkToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35,35,55)}):Play()
+    end
+end)
+
+-- FPS toggle
+local fpsOn = false
+FpsToggle.MouseButton1Click:Connect(function()
+    local ok = pcall(function() fpsOn = ToggleFPS() end)
+    if not ok then
+        FpsToggle.Text = "N/A"
+        FpsToggle.TextColor3 = Color3.fromRGB(255,80,80)
+        return
+    end
+    if fpsOn then
+        FpsToggle.Text = "ON"
+        FpsToggle.TextColor3 = Color3.fromRGB(80,255,120)
+        TweenService:Create(FpsToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(30,80,50)}):Play()
+    else
+        FpsToggle.Text = "OFF"
+        FpsToggle.TextColor3 = Color3.fromRGB(100,100,140)
+        TweenService:Create(FpsToggle, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(35,35,55)}):Play()
+    end
+end)
+
+-- Copy HWID
+CopyHWIDBtn.MouseButton1Click:Connect(function()
+    setclipboard(HWID)
+    CopyHWIDBtn.Text = "✅  Copied!"
+    task.delay(2, function()
+        CopyHWIDBtn.Text = "📋  Copy HWID to Clipboard"
+    end)
+end)
+
+-- Discord
+JoinBtn.MouseButton1Click:Connect(function()
+    OpenDiscord()
+    JoinBtn.Text = "✅ Copied!"
+    task.delay(2, function() JoinBtn.Text = "Join Server →" end)
+end)
+
+-- ================================================
+-- KEY VERIFICATION FLOW
+-- ================================================
+local function ShowMainUI()
+    TweenService:Create(KeyFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {
+        Position = UDim2.new(0.5, -230, 1.5, 0),
+        BackgroundTransparency = 1
+    }):Play()
+    task.wait(0.3)
+    KeyFrame.Visible = false
+    MainFrame.Visible = true
+    MainFrame.Position = UDim2.new(0.5, -330, 1.5, 0)
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
+        Position = UDim2.new(0.5, -330, 0.5, -210)
+    }):Play()
+end
+
+-- Dot animation for verifying
+local checking = false
+task.spawn(function()
+    local dots = 0
+    while true do
+        task.wait(0.4)
+        if checking then
+            dots = (dots % 3) + 1
+            SubmitBtn.Text = "Verifying" .. string.rep(".", dots)
+        end
+    end
+end)
+
+-- Check saved key on launch
+if isfile(SaveFile) then
+    local savedKey = readfile(SaveFile)
+    if savedKey and savedKey ~= "" then
+        KStatus.TextColor3 = Color3.fromRGB(80,255,120)
+        KStatus.Text = "⏳  Checking saved key..."
+        task.spawn(function()
+            local valid, msg = ValidateKey(savedKey)
+            if valid then
+                ShowMainUI()
+            else
+                writefile(SaveFile, "")
+                KStatus.TextColor3 = Color3.fromRGB(255,80,80)
+                KStatus.Text = "❌  Saved key expired. Enter a new one."
+            end
+        end)
+    end
+end
+
+SubmitBtn.MouseButton1Click:Connect(function()
+    local key = KeyBox.Text
+    if key == "" then
+        KStatus.TextColor3 = Color3.fromRGB(255,200,80)
+        KStatus.Text = "⚠️  Please enter a key."
+        return
+    end
+
+    checking = true
+    SubmitBtn.BackgroundColor3 = Color3.fromRGB(50,50,180)
+    KStatus.Text = ""
+
+    task.spawn(function()
+        local valid, msg = ValidateKey(key)
+        checking = false
+        SubmitBtn.Text = "🔓  Verify Key"
+        if valid then
+            writefile(SaveFile, key)
+            KStatus.TextColor3 = Color3.fromRGB(80,255,120)
+            KStatus.Text = "✅  Key valid!"
+            SubmitBtn.BackgroundColor3 = Color3.fromRGB(40,160,80)
+            task.wait(0.6)
+            ShowMainUI()
+        else
+            SubmitBtn.BackgroundColor3 = Color3.fromRGB(70,70,230)
+            KStatus.TextColor3 = Color3.fromRGB(255,80,80)
+            KStatus.Text = "❌  " .. (msg or "Invalid key")
+        end
+    end)
+end)
